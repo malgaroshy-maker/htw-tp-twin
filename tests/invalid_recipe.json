@@ -1,0 +1,1 @@
+[{"recipe_id": "invalid", "recipe_name": "Invalid", "products_per_pack": 24, "grid_cols": 8, "grid_rows": 3, "nominal_cycle_time_sec": 3.2, "product_spawn_interval_sec": 0.09, "reject_probability": 1.5, "jam_probability": 0.015}]

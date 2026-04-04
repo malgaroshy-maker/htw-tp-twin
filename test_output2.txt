@@ -1,0 +1,26 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.12.10, pytest-9.0.2, pluggy-1.6.0
+rootdir: D:\HTW-traypacker project
+configfile: pyproject.toml
+plugins: anyio-4.12.1
+collected 6 items
+
+tests\test_phase1.py ....F.                                              [100%]
+
+================================== FAILURES ===================================
+_____________________________ test_load_scenarios _____________________________
+
+    def test_load_scenarios():
+        path = Path("configs/scenarios.json")
+        scenarios = load_scenarios(path)
+        assert len(scenarios) > 0
+        assert scenarios[0].scenario_id == "product-starvation-01"
+        assert len(scenarios[0].steps) > 0
+>       assert scenarios[0].steps[0].trigger.type.value == "ELAPSED_SEC"
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: 'str' object has no attribute 'value'
+
+tests\test_phase1.py:53: AttributeError
+=========================== short test summary info ===========================
+FAILED tests/test_phase1.py::test_load_scenarios - AttributeError: 'str' obje...
+========================= 1 failed, 5 passed in 0.17s =========================

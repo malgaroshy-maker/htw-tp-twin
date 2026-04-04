@@ -1,0 +1,184 @@
+{
+  "scenarios": [
+    {
+      "scenario_id": "product-starvation-01",
+      "scenario_name": "Product Starvation Challenge",
+      "description": "Upstream product supply is interrupted. Operator must restore supply and return machine to production.",
+      "goals": [
+        "Recognize STARVED state",
+        "Restore upstream product supply",
+        "Resume stable production"
+      ],
+      "initial_recipe": "24-pack",
+      "steps": [
+        {
+          "trigger": { "type": "ELAPSED_SEC", "value": 15 },
+          "action": { "type": "SET_INPUT", "name": "product_available", "value": false }
+        }
+      ],
+      "recovery_condition": {
+        "type": "all_of",
+        "conditions": [
+          { "type": "tag_equals", "tag": "product_available", "value": true },
+          { "type": "machine_state_in", "value": ["RUNNING"] }
+        ]
+      },
+      "timeout_sec": 180,
+      "success_criteria": [
+        "Machine enters STARVED",
+        "Machine recovers to RUNNING when product returns"
+      ]
+    },
+    {
+      "scenario_id": "blank-interruption-01",
+      "scenario_name": "Blank Supply Interruption",
+      "description": "Blank magazine runs empty. Operator must refill blanks, reset the fault, and resume.",
+      "goals": [
+        "Identify BLANK_MISSING fault",
+        "Refill blank supply",
+        "Perform fault reset and resume"
+      ],
+      "initial_recipe": "24-pack",
+      "steps": [
+        {
+          "trigger": { "type": "ELAPSED_SEC", "value": 15 },
+          "action": { "type": "SET_INPUT", "name": "blank_available", "value": false }
+        }
+      ],
+      "recovery_condition": {
+        "type": "all_of",
+        "conditions": [
+          { "type": "tag_equals", "tag": "blank_available", "value": true },
+          { "type": "machine_state_in", "value": ["RUNNING"] }
+        ]
+      },
+      "timeout_sec": 300,
+      "success_criteria": [
+        "Fault is acknowledged and cleared",
+        "Machine returns to stable production"
+      ]
+    },
+    {
+      "scenario_id": "downstream-block-01",
+      "scenario_name": "Downstream Blockage",
+      "description": "Simulation of a full palletizer or downstream conveyor blockage.",
+      "goals": [
+        "Recognize BLOCKED state",
+        "Relieve downstream pressure",
+        "Resume production"
+      ],
+      "initial_recipe": "24-pack",
+      "steps": [
+        {
+          "trigger": { "type": "ELAPSED_SEC", "value": 15 },
+          "action": { "type": "SET_INPUT", "name": "downstream_available", "value": false }
+        }
+      ],
+      "recovery_condition": {
+        "type": "all_of",
+        "conditions": [
+          { "type": "tag_equals", "tag": "downstream_available", "value": true },
+          { "type": "machine_state_in", "value": ["RUNNING"] }
+        ]
+      },
+      "timeout_sec": 240,
+      "success_criteria": [
+        "Effective recognition of outfeed blockage",
+        "Safe recovery once downstream is available"
+      ]
+    },
+    {
+      "scenario_id": "gap-jam-01",
+      "scenario_name": "Gap Control Jam",
+      "description": "A mechanical jam occurs in the gap control grouping area.",
+      "goals": [
+        "Acknowledge GAP_CONTROL_JAM fault",
+        "Clear mechanical obstruction",
+        "Reset and restart machine"
+      ],
+      "initial_recipe": "24-pack",
+      "steps": [
+        {
+          "trigger": { "type": "ELAPSED_SEC", "value": 20 },
+          "action": { "type": "INJECT_FAULT", "name": "GAP_CONTROL_JAM", "value": "" }
+        }
+      ],
+      "recovery_condition": {
+        "type": "all_of",
+        "conditions": [
+          { "type": "fault_cleared", "value": "GAP_CONTROL_JAM" },
+          { "type": "machine_state_in", "value": ["RUNNING"] }
+        ]
+      },
+      "timeout_sec": 300,
+      "success_criteria": [
+        "Jam is cleared and fault reset correctly",
+        "No secondary jam occurs on restart"
+      ]
+    },
+    {
+      "scenario_id": "high-reject-01",
+      "scenario_name": "High Reject Performance",
+      "description": "The machine begins producing a high volume of rejects. Operator must identify the cause and stabilize the quality.",
+      "goals": [
+        "Monitor REJECT counts",
+        "Adjust quality configuration",
+        "Restore low reject rate"
+      ],
+      "initial_recipe": "24-pack",
+      "steps": [
+        {
+          "trigger": { "type": "ELAPSED_SEC", "value": 10 },
+          "action": { "type": "SET_CFG", "name": "reject_probability", "value": 0.8 }
+        }
+      ],
+      "recovery_condition": {
+        "type": "all_of",
+        "conditions": [
+          { "type": "tag_equals", "tag": "reject_probability", "value": 0.05 },
+          { "type": "machine_state_in", "value": ["RUNNING"] }
+        ]
+      },
+      "timeout_sec": 300,
+      "success_criteria": [
+        "Quality issue identified",
+        "Reject rate restored to normal levels"
+      ]
+    },
+    {
+      "scenario_id": "compound-disturbance-01",
+      "scenario_name": "Compound Disturbance",
+      "description": "Simultaneous product starvation and mechanical jam. Complex recovery required.",
+      "goals": [
+        "Prioritize fault clearing",
+        "Restore supply chain",
+        "Coordinated system restart"
+      ],
+      "initial_recipe": "24-pack",
+      "steps": [
+        {
+          "trigger": { "type": "ELAPSED_SEC", "value": 10 },
+          "action": { "type": "SET_INPUT", "name": "product_available", "value": false }
+        },
+        {
+          "trigger": { "type": "ELAPSED_SEC", "value": 20 },
+          "action": { "type": "INJECT_FAULT", "name": "GAP_CONTROL_JAM", "value": "" }
+        }
+      ],
+      "recovery_condition": {
+        "type": "all_of",
+        "conditions": [
+          { "type": "tag_equals", "tag": "product_available", "value": true },
+          { "type": "fault_cleared", "value": "GAP_CONTROL_JAM" },
+          { "type": "machine_state_in", "value": ["RUNNING"] }
+        ]
+      },
+      "timeout_sec": 480,
+      "success_criteria": [
+        "Fault cleared effectively",
+        "Supply restored",
+        "Seamless return to RUNNING"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,54 @@
+[
+  {
+    "recipe_id": "21-pack",
+    "recipe_name": "21-pack",
+    "products_per_pack": 21,
+    "grid_cols": 7,
+    "grid_rows": 3,
+    "nominal_cycle_time_sec": 2.8,
+    "product_spawn_interval_sec": 0.08,
+    "reject_probability": 0.04,
+    "jam_probability": 0.01,
+    "display_color": "#6B8BF0",
+    "notes": "Compact format, fastest cycle time"
+  },
+  {
+    "recipe_id": "24-pack",
+    "recipe_name": "24-pack",
+    "products_per_pack": 24,
+    "grid_cols": 8,
+    "grid_rows": 3,
+    "nominal_cycle_time_sec": 3.2,
+    "product_spawn_interval_sec": 0.09,
+    "reject_probability": 0.05,
+    "jam_probability": 0.015,
+    "display_color": "#3CBF6B",
+    "notes": "Baseline starter recipe"
+  },
+  {
+    "recipe_id": "27-pack",
+    "recipe_name": "27-pack",
+    "products_per_pack": 27,
+    "grid_cols": 9,
+    "grid_rows": 3,
+    "nominal_cycle_time_sec": 3.6,
+    "product_spawn_interval_sec": 0.1,
+    "reject_probability": 0.06,
+    "jam_probability": 0.02,
+    "display_color": "#F0C846",
+    "notes": "Slightly slower with higher sensitivity"
+  },
+  {
+    "recipe_id": "30-pack",
+    "recipe_name": "30-pack",
+    "products_per_pack": 30,
+    "grid_cols": 10,
+    "grid_rows": 3,
+    "nominal_cycle_time_sec": 4.0,
+    "product_spawn_interval_sec": 0.11,
+    "reject_probability": 0.08,
+    "jam_probability": 0.025,
+    "display_color": "#DC4646",
+    "notes": "Highest pack count in V1 set"
+  }
+]

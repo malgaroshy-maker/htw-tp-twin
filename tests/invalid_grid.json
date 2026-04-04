@@ -1,0 +1,1 @@
+[{"recipe_id": "small_grid", "recipe_name": "Small Grid", "products_per_pack": 24, "grid_cols": 2, "grid_rows": 2, "nominal_cycle_time_sec": 3.2, "product_spawn_interval_sec": 0.09, "reject_probability": 0.05, "jam_probability": 0.015}]

@@ -1,0 +1,153 @@
+/* Machine Simulation Animations */
+
+@keyframes belt-flow {
+  from { stroke-dashoffset: 20; }
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { opacity: 0.1; }
+  50% { opacity: 0.4; }
+}
+
+@keyframes flow-bounce {
+  0%, 100% { transform: translateX(0); opacity: 0.4; }
+  50% { transform: translateX(5px); opacity: 0.8; }
+}
+
+@keyframes zone-fault-pulse {
+  0%, 100% { stroke-opacity: 0.8; filter: drop-shadow(0 0 2px rgba(239, 68, 68, 0.4)); }
+  50% { stroke-opacity: 1; filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.8)); }
+}
+
+@keyframes starved-pulse {
+  0%, 100% { stop-color: #F59E0B; stop-opacity: 0.2; }
+  50% { stop-color: #FBBF24; stop-opacity: 0.6; }
+}
+
+@keyframes machine-wide-fault {
+  0%, 100% { fill-opacity: 0.02; }
+  50% { fill-opacity: 0.08; }
+}
+
+/* Classes */
+
+.conveyor-belt-flow {
+  stroke: rgba(255, 255, 255, 0.05);
+  stroke-width: 2;
+  stroke-dasharray: 4 4;
+  animation: belt-flow 1s linear infinite;
+}
+
+.zone-glow-active {
+  fill: var(--color-good);
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+.flow-arrow-active {
+  animation: flow-bounce 1s ease-in-out infinite;
+}
+
+.machine-chassis {
+  filter: drop-shadow(0 10px 15px rgba(0,0,0,0.4));
+}
+
+.font-hmi {
+  font-family: 'Outfit', 'Inter', ui-sans-serif, system-ui, sans-serif;
+}
+
+.zone-fault-pulse {
+  animation: zone-fault-pulse 1s ease-in-out infinite;
+}
+
+@keyframes zone-fault-pulse {
+  0%, 100% { stroke-opacity: 0.6; stroke-width: 2; }
+  50% { stroke-opacity: 1; stroke-width: 4; filter: drop-shadow(0 0 12px rgba(239, 68, 68, 0.6)); }
+}
+
+.machine-wide-fault-overlay {
+  animation: machine-wide-fault 2s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.starved-gradient-pulse {
+  animation: starved-pulse 2s ease-in-out infinite;
+}
+
+.machine-frame {
+  transition: all 0.3s ease;
+}
+
+/* Product styling */
+.product-carton {
+  /* Removed transition here to allow inline style control for smooth entry */
+}
+
+.tray-pack {
+  /* Removed transition here to allow inline style control for smooth discharge */
+}
+
+@keyframes chain-move {
+  from { transform: translateX(0); }
+  to { transform: translateX(40px); }
+}
+
+.conveyor-chain-move {
+  animation: chain-move linear infinite;
+  will-change: transform;
+}
+
+/* Mechanical components transition refinements */
+.stop-gate rect, .stopper-mechanism rect, .terminal-mechanism rect, .slide-in-mechanism rect, .slide-in-mechanism {
+  transition: all 0.2s cubic-bezier(0.45, 0, 0.55, 1);
+}
+
+.machine-frame text {
+  text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+  pointer-events: none;
+  user-select: none;
+  font-family: 'Outfit', 'Inter', ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: 0.1em;
+}
+
+.forming-guide-rail {
+  stroke: #475569;
+  stroke-width: 2;
+  stroke-opacity: 0.4;
+  fill: none;
+}
+
+/* Transient Pack Animations (CSS fallback for transient packs only) */
+@keyframes pack-travel-good {
+  0% { transform: translateX(0); opacity: 1; }
+  80% { opacity: 1; }
+  100% { transform: translateX(150px); opacity: 0; }
+}
+
+.animate-pack-good {
+  animation: pack-travel-good 2s linear forwards;
+}
+
+@keyframes pack-travel-reject {
+  0% { transform: translate(0, 0); opacity: 1; }
+  18% { transform: translate(16px, 12px); opacity: 1; }
+  45% { transform: translate(42px, 34px); opacity: 1; }
+  80% { opacity: 1; }
+  100% { transform: translate(94px, 34px); opacity: 0; }
+}
+
+.animate-pack-reject {
+  animation: pack-travel-reject 1.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+
+@keyframes blank-descend {
+  /* Suction arm picks blank from magazine, moves it to forming zone. */
+  0% { transform: translate(0, 0) scaleX(0.8); opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { transform: translate(0, 55px) scaleX(1); opacity: 0; }
+}
+
+.animate-blank-feed {
+  animation: blank-descend calc(var(--cycle-duration) * 0.2) ease-in-out forwards;
+}

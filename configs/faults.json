@@ -1,0 +1,94 @@
+{
+  "faults": [
+    {
+      "fault_id": "STARVATION",
+      "category": "production_interruption",
+      "severity": "WARNING",
+      "behavior_type": "STATE_ONLY",
+      "machine_state_effect": "STARVED",
+      "requires_reset": false,
+      "reject_created": false,
+      "recovery_mode": "auto"
+    },
+    {
+      "fault_id": "DOWNSTREAM_BLOCK",
+      "category": "production_interruption",
+      "severity": "WARNING",
+      "behavior_type": "STATE_ONLY",
+      "machine_state_effect": "BLOCKED",
+      "requires_reset": false,
+      "reject_created": false,
+      "recovery_mode": "auto"
+    },
+    {
+      "fault_id": "BLANK_MISSING",
+      "category": "stopping_fault",
+      "severity": "FAULT",
+      "behavior_type": "LATCHING_FAULT",
+      "machine_state_effect": "FAULTED",
+      "requires_reset": true,
+      "reject_created": false,
+      "recovery_mode": "manual_reset"
+    },
+    {
+      "fault_id": "GAP_CONTROL_JAM",
+      "category": "stopping_fault",
+      "severity": "FAULT",
+      "behavior_type": "LATCHING_FAULT",
+      "machine_state_effect": "FAULTED",
+      "requires_reset": true,
+      "reject_created": false,
+      "recovery_mode": "manual_reset"
+    },
+    {
+      "fault_id": "INCOMPLETE_PACK",
+      "category": "reject_only",
+      "severity": "WARNING",
+      "behavior_type": "REJECT_ONLY",
+      "machine_state_effect": null,
+      "requires_reset": false,
+      "reject_created": true,
+      "recovery_mode": "continue"
+    },
+    {
+      "fault_id": "OPEN_FLAP",
+      "category": "reject_only",
+      "severity": "WARNING",
+      "behavior_type": "REJECT_ONLY",
+      "machine_state_effect": null,
+      "requires_reset": false,
+      "reject_created": true,
+      "recovery_mode": "continue"
+    },
+    {
+      "fault_id": "REJECT_BIN_FULL",
+      "category": "stopping_fault",
+      "severity": "FAULT",
+      "behavior_type": "LATCHING_FAULT",
+      "machine_state_effect": "FAULTED",
+      "requires_reset": true,
+      "reject_created": false,
+      "recovery_mode": "manual_reset"
+    },
+    {
+      "fault_id": "REJECT_BIN_NEAR_FULL",
+      "category": "production_interruption",
+      "severity": "WARNING",
+      "behavior_type": "STATE_ONLY",
+      "machine_state_effect": null,
+      "requires_reset": false,
+      "reject_created": false,
+      "recovery_mode": "auto"
+    },
+    {
+      "fault_id": "TRANSPORT_CHAIN_GAP",
+      "category": "stopping_fault",
+      "severity": "FAULT",
+      "behavior_type": "LATCHING_FAULT",
+      "machine_state_effect": "FAULTED",
+      "requires_reset": true,
+      "reject_created": false,
+      "recovery_mode": "manual_reset"
+    }
+  ]
+}

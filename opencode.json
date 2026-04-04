@@ -1,0 +1,40 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "google/gemini-3-flash-preview",
+  "small_model": "google/gemini-3.1-flash-lite-preview",
+  "agent": {
+    "plan": {
+      "mode": "primary",
+      "model": "google/gemini-3.1-pro-preview",
+      "temperature": 0.1
+    },
+    "build": {
+      "mode": "primary",
+      "model": "google/gemini-3-flash-preview",
+      "temperature": 0.2
+    }
+  },
+  "instructions": [
+    "README.md",
+    "docs/agents/*.md",
+    "docs/specs/*.md",
+    "docs/opencode/*.md"
+  ],
+  "autoupdate": "notify",
+  "watcher": {
+    "ignore": [
+      ".git/**",
+      ".venv/**",
+      "node_modules/**",
+      "dist/**",
+      "build/**",
+      "__pycache__/**",
+      ".pytest_cache/**"
+    ]
+  },
+  "compaction": {
+    "auto": true,
+    "prune": true,
+    "reserved": 10000
+  }
+}

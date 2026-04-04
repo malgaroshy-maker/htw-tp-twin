@@ -1,0 +1,104 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.12.10, pytest-9.0.2, pluggy-1.6.0
+rootdir: D:\HTW-traypacker project
+configfile: pyproject.toml
+plugins: anyio-4.12.1
+collected 43 items
+
+tests\test_ai.py .....                                                   [ 11%]
+tests\test_api.py ........                                               [ 30%]
+tests\test_control.py .....                                              [ 41%]
+tests\test_controller.py ..                                              [ 46%]
+tests\test_phase1.py ....F.                                              [ 60%]
+tests\test_phase2.py ........                                            [ 79%]
+tests\test_reports.py ..                                                 [ 83%]
+tests\test_scenario_v2.py ...                                            [ 90%]
+tests\test_scenarios.py .FF                                              [ 97%]
+tests\test_state_machine.py .                                            [100%]
+
+================================== FAILURES ===================================
+_____________________________ test_load_scenarios _____________________________
+
+    def test_load_scenarios():
+        path = Path("configs/scenarios.json")
+        scenarios = load_scenarios(path)
+        assert len(scenarios) > 0
+        assert scenarios[0].scenario_id == "product-starvation-01"
+        assert len(scenarios[0].steps) > 0
+>       assert scenarios[0].steps[0].trigger.type == "elapsed_sec"
+E       AssertionError: assert 'ELAPSED_SEC' == 'elapsed_sec'
+E         
+E         - elapsed_sec
+E         + ELAPSED_SEC
+
+tests\test_phase1.py:53: AssertionError
+______________________ test_scenario_elapsed_sec_trigger ______________________
+
+engine = <app.simulator.engine.SimulatorEngine object at 0x0000027ECEAA3590>
+
+    def test_scenario_elapsed_sec_trigger(engine):
+        scenario = Scenario(
+            scenario_id="test-02",
+            scenario_name="Test Trigger",
+            description="Test",
+            goals=[],
+            initial_recipe="24-pack",
+            steps=[
+                ScenarioStep(
+                    trigger=ScenarioTrigger(type="elapsed_sec", value=0.2),
+                    action=ScenarioAction(type="set_input", name="product_available", value=False)
+                )
+            ],
+            success_criteria=[]
+        )
+    
+        engine.scenario_runner.start_scenario(scenario)
+        assert engine.tags.state.inputs["product_available"] is True
+    
+        # Update with small dt
+        engine.update(0.1)
+        assert engine.tags.state.inputs["product_available"] is True
+    
+        # Wait a bit more than 0.2s
+        time.sleep(0.25)
+        engine.update(0.1)
+    
+>       assert engine.tags.state.inputs["product_available"] is False
+E       assert True is False
+
+tests\test_scenarios.py:55: AssertionError
+______________________ test_scenario_cycle_count_trigger ______________________
+
+engine = <app.simulator.engine.SimulatorEngine object at 0x0000027ECEAA38C0>
+
+    def test_scenario_cycle_count_trigger(engine):
+        scenario = Scenario(
+            scenario_id="test-03",
+            scenario_name="Test Cycle Trigger",
+            description="Test",
+            goals=[],
+            initial_recipe="24-pack",
+            steps=[
+                ScenarioStep(
+                    trigger=ScenarioTrigger(type="cycle_count", value=1),
+                    action=ScenarioAction(type="inject_fault", name="GAP_CONTROL_JAM", value=None)
+                )
+            ],
+            success_criteria=[]
+        )
+    
+        engine.scenario_runner.start_scenario(scenario)
+    
+        # Manually increment cycle count to trigger
+        engine.tags.state.out["cycle_count"] = 1
+        engine.update(0.1)
+    
+>       assert engine.tags.state.sts["fault_active"] is True
+E       assert False is True
+
+tests\test_scenarios.py:81: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_phase1.py::test_load_scenarios - AssertionError: assert 'EL...
+FAILED tests/test_scenarios.py::test_scenario_elapsed_sec_trigger - assert Tr...
+FAILED tests/test_scenarios.py::test_scenario_cycle_count_trigger - assert Fa...
+======================== 3 failed, 40 passed in 4.55s =========================
