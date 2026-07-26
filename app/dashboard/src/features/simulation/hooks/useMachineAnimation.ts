@@ -1,10 +1,10 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useId } from 'react';
 import type { SimulatorState } from '../../../hooks/simTypes';
 import { MACHINE_LAYOUT_2D, getLaneCenters2D } from '../machineLayout';
 
+import { SNAPSHOT_BLEND_MS, VISUAL_SPEED_SCALE } from '../animation/constants';
+
 const SVG_NS = "http://www.w3.org/2000/svg";
-const SNAPSHOT_BLEND_MS = 1200;
-const VISUAL_SPEED_SCALE = 0.42;
 
 interface InFlightProduct {
   id: number;
@@ -90,7 +90,8 @@ export function useMachineAnimation(state: SimulatorState | null) {
   const packRef = useRef<SVGGElement>(null);
   const formationMarkupRef = useRef<string>('');
   const packInnerMarkupRef = useRef<string>('');
-  const sessionID = useRef(Math.random().toString(36).substr(2, 9));
+  const sessionIDBase = useId().replace(/:/g, '');
+  const sessionID = useRef(sessionIDBase);
   const inFlightProducts = useRef<InFlightProduct[]>([]);
   const lastProductIn = useRef(0);
   const chainOffset = useRef(0);
@@ -140,10 +141,10 @@ export function useMachineAnimation(state: SimulatorState | null) {
     }
   }, [state]);
   
-  const animate = useCallback((timestamp: number) => {
+  const animate = useCallback(function animationLoop(timestamp: number) {
     const s = stateRef.current;
     if (!s || !productLayerRef.current) {
-      requestRef.current = requestAnimationFrame(animate);
+      requestRef.current = requestAnimationFrame(animationLoop);
       return;
     }
 
@@ -419,7 +420,7 @@ export function useMachineAnimation(state: SimulatorState | null) {
       console.warn("Sim Engine Error - Recovering...", e);
     }
 
-    requestRef.current = requestAnimationFrame(animate);
+    requestRef.current = requestAnimationFrame(animationLoop);
   }, []);
 
   // 19: Lifecycle Loop
