@@ -42,6 +42,8 @@ export interface MachineSceneModel {
   faultCode: string;
   warningCode: string;
   phaseDescription: string;
+  machineMode: string;
+  isManualMode: boolean;
 }
 
 function lerp(from: number, to: number, t: number) {
@@ -202,6 +204,8 @@ export function useMachineSceneModel(state: SimulatorState | null): MachineScene
       faultCode: state.fault.active_code,
       warningCode: state.warn.active_code,
       phaseDescription: PHASE_DESCRIPTIONS[phase] ?? 'Machine cycle in progress.',
+      machineMode: sts.machine_mode,
+      isManualMode: sts.machine_mode === 'MANUAL',
     };
   }, [state]);
 }

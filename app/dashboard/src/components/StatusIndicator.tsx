@@ -1,4 +1,4 @@
-import { cn } from './Badge';
+import { cn } from '../utils';
 
 interface StatusIndicatorProps {
   active: boolean;

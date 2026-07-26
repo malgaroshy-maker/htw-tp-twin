@@ -6,8 +6,8 @@ import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
 import { AiPanel } from '../../components/AiPanel';
 import { ReportViewer } from '../../components/ReportViewer';
-import { ScenarioSelector } from '../../components/ScenarioSelector';
-import { SimulationView2D } from '../simulation/SimulationView2D';
+
+import { SimulationView } from '../simulation/SimulationView';
 import { 
   Play, 
   Square, 
@@ -23,14 +23,11 @@ import {
 export function Overview() {
   const { 
     state, 
-    scenarios,
     activeReport,
     setActiveReport,
     aiResponse,
     sendCommand,
     resetSession,
-    startScenario,
-    stopScenario,
     fetchReport,
     askAi
   } = useSimulator();
@@ -56,6 +53,11 @@ export function Overview() {
   const isWarning = sts.fault_active && (fault.active_severity === 'WARNING' || out.reject_accumulation_count === 2);
   const isRejectBinFull = out.reject_accumulation_count >= 3;
   const commsHealthy = plc?.comms_healthy ?? true;
+
+  // Computed Telemetry
+  const idealPacks = out.runtime_sec > 0 ? (out.runtime_sec / cfg.nominal_cycle_time_sec) : 0;
+  const efficiency = idealPacks > 0 ? Math.min(100, (out.good_pack_count / idealPacks) * 100).toFixed(1) : "100.0";
+  const mtbfHours = (out.runtime_sec / 3600).toFixed(2);
 
   const handleCommand = (action: string) => {
     sendCommand(action);
@@ -132,7 +134,7 @@ export function Overview() {
           <div className="w-[1px] h-10 bg-slate-800/50" />
           <div className="flex flex-col items-end">
             <div className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Efficiency</div>
-            <div className="text-xl font-hmi font-black text-white leading-none">94.2%</div>
+            <div className="text-xl font-hmi font-black text-white leading-none">{efficiency}%</div>
           </div>
           
           <div className="flex items-center gap-2 ml-4">
@@ -222,7 +224,7 @@ export function Overview() {
               </Link>
             </div>
 
-            <SimulationView2D state={state} />
+            <SimulationView state={state} sendCommand={sendCommand} />
           </div>
         </div>
 
@@ -233,7 +235,7 @@ export function Overview() {
           <div className="grid grid-cols-2 gap-3">
              <div className="bg-slate-900/60 border border-slate-800/50 p-3 rounded-xl flex flex-col">
                 <span className="text-[8px] font-hmi text-slate-500 uppercase tracking-widest">Efficiency</span>
-                <span className="text-lg font-black text-emerald-400 font-mono">98.2%</span>
+                <span className="text-lg font-black text-emerald-400 font-mono">{efficiency}%</span>
              </div>
              <div className="bg-slate-900/60 border border-slate-800/50 p-3 rounded-xl flex flex-col">
                 <span className="text-[8px] font-hmi text-slate-500 uppercase tracking-widest">Cycle Time</span>
@@ -245,7 +247,7 @@ export function Overview() {
              </div>
              <div className="bg-slate-900/60 border border-slate-800/50 p-3 rounded-xl flex flex-col">
                 <span className="text-[8px] font-hmi text-slate-500 uppercase tracking-widest">MTBF</span>
-                <span className="text-lg font-black text-amber-500 font-mono">14.2h</span>
+                <span className="text-lg font-black text-amber-500 font-mono">{mtbfHours}h</span>
              </div>
           </div>
           <Card title="Operator Interface" className="border-slate-800/50 bg-[#0C1118]">
@@ -307,13 +309,19 @@ export function Overview() {
             </div>
           </Card>
           
-          <ScenarioSelector 
-            scenarios={scenarios} 
-            activeScenarioId={cfg.active_scenario_id}
-            activeScenarioStatus={cfg.active_scenario_status}
-            onStart={startScenario}
-            onStop={stopScenario}
-          />
+          {/* Training Scenarios Link */}
+          <button
+            onClick={() => navigate('/training')}
+            className="flex items-center justify-between px-4 py-3 bg-indigo-500/5 border border-indigo-500/20 hover:bg-indigo-500/10 hover:border-indigo-500/40 rounded-2xl transition-all text-left group"
+          >
+            <div>
+              <p className="text-xs font-black text-indigo-300 uppercase tracking-wider">Training Scenarios</p>
+              <p className="text-[10px] text-slate-500 mt-0.5">Fault injection &amp; operator drills</p>
+            </div>
+            <svg className="w-4 h-4 text-indigo-400 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
 
           {/* REJECT BIN CLEARANCE */}
           <div className="bg-slate-900/80 border border-slate-700/50 p-4 rounded-2xl flex flex-col gap-3">
@@ -364,7 +372,7 @@ export function Overview() {
             <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
             <span className="text-[10px] font-hmi font-bold uppercase tracking-widest">Telemetry Stream Active</span>
           </div>
-          <span className="text-[10px] font-mono opacity-40">SEQ_{Math.floor(Date.now()/1000).toString(16).toUpperCase()}</span>
+          <span className="text-[10px] font-mono opacity-40">SEQ_{Math.floor(out.runtime_sec).toString(16).toUpperCase().padStart(8, '0')}</span>
         </div>
       </footer>
     </div>

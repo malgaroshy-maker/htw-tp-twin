@@ -12,6 +12,7 @@ import { RejectPunch } from './components/topdown/RejectPunch';
 import { Pack } from './components/Pack';
 import { useMachineAnimation } from './hooks/useMachineAnimation';
 import { MACHINE_LAYOUT_2D } from './machineLayout';
+import type { SimulatorState } from '../../hooks/simTypes';
 import './simulation.css';
 
 interface TransientPack {
@@ -23,7 +24,7 @@ interface TransientPack {
 }
 
 interface SimulationView2DProps {
-  state: any;
+  state: SimulatorState;
 }
 
 export function SimulationView2D({ state }: SimulationView2DProps) {
@@ -42,6 +43,7 @@ export function SimulationView2D({ state }: SimulationView2DProps) {
     const evtTs = state.evt.last_event_ts;
     if (evtCode === 'PACK_GOOD_DISCHARGED' || evtCode === 'PACK_REJECT_DIVERTED') {
       const type = evtCode === 'PACK_GOOD_DISCHARGED' ? 'good' : 'reject';
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setTransientPacks(prev => {
         if (prev.some(p => p.id === evtTs?.toString())) return prev;
         return [...prev, {
@@ -85,6 +87,14 @@ export function SimulationView2D({ state }: SimulationView2DProps) {
           </linearGradient>
           <linearGradient id="product-metallic" x1="0%" y1="0%" x2="0%" y2="100%">
             <stop offset="0%" stopColor="#10B981" /><stop offset="50%" stopColor="#34D399" /><stop offset="100%" stopColor="#059669" />
+          </linearGradient>
+          <linearGradient id="belt-texture" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#1e293b" />
+            <stop offset="100%" stopColor="#0f172a" />
+          </linearGradient>
+          <linearGradient id="fault-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#ef4444" stopOpacity={0.2} />
+            <stop offset="100%" stopColor="#991b1b" stopOpacity={0.6} />
           </linearGradient>
           <filter id="glow">
             <feGaussianBlur stdDeviation="2" result="coloredBlur" />
@@ -133,6 +143,13 @@ export function SimulationView2D({ state }: SimulationView2DProps) {
           </g>
         ))}
       </svg>
+
+      {sts?.machine_mode === 'MANUAL' && (
+        <div className="absolute top-6 left-6 flex items-center gap-3 px-4 py-2 bg-amber-500/10 border border-amber-500/30 rounded-xl backdrop-blur-md animate-pulse shadow-[0_0_20px_rgba(245,158,11,0.1)]">
+          <div className="w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.8)]" />
+          <span className="text-amber-500 font-black text-xs uppercase tracking-[0.2em]">Manual Step Mode Active</span>
+        </div>
+      )}
 
       <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-1 pointer-events-none bg-slate-900/90 border border-slate-700/50 p-1.5 rounded-xl backdrop-blur-md">
         {['IDLE', 'GROUPING', 'CAPTURED', 'BLANK_FEED', 'TRANSFER', 'PACKING', 'DISCHARGE'].map((ph) => (

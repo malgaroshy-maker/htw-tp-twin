@@ -284,7 +284,7 @@ export function Diagnostics() {
                 <DiagIndicator
                   key={item.key}
                   label={item.label}
-                  value={inputs[item.key]}
+                  value={inputs[item.key] as boolean}
                   icon={item.icon}
                   onToggle={devMode ? handleToggle(item.key) : undefined}
                   devMode={devMode}
@@ -300,7 +300,7 @@ export function Diagnostics() {
                 <DiagIndicator
                   key={item.key}
                   label={item.label}
-                  value={inputs[item.key]}
+                  value={inputs[item.key] as boolean}
                   icon={item.icon}
                   onToggle={devMode ? handleToggle(item.key) : undefined}
                   devMode={devMode}

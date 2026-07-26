@@ -143,8 +143,15 @@ class SimulatorEngine:
         self._process_commands()
         self._update_virtual_sensors(dt)
         self._process_warning_escalation(dt)
-        self._process_state_transitions(dt)
-        self._process_cycle_phases(dt)
+
+        # Mode-based gating: AUTO vs MANUAL
+        is_manual = self.tags.state.sts["machine_mode"] == MachineMode.MANUAL.value
+        if is_manual:
+            self._process_manual_jog_commands()
+        else:
+            self._process_state_transitions(dt)
+            self._process_cycle_phases(dt)
+
         self._update_runtime_metrics(dt)
         self.tags.pulse_clear()
 
@@ -406,14 +413,67 @@ class SimulatorEngine:
             self._blank_empty_cycles = 0
             self._log_event("BLANKS_REFILLED", "PRODUCTION", Severity.INFO, "Blank magazine refilled to 100")
 
+    def _process_manual_jog_commands(self) -> None:
+        """Process maintenance/setup commands specifically for MANUAL mode."""
+        cmd = self.tags.state.cmd
+        out = self.tags.state.out
+        sts = self.tags.state.sts
+
+        # 1. Jog Infeed: Add one product to the gathering buffer manually.
+        if cmd.get("jog_infeed"):
+            if out["grouped_count"] < out["target_group_count"]:
+                out["grouped_count"] += 1
+                self._log_event(
+                    "MANUAL_JOG_INFEED",
+                    "MANUAL",
+                    Severity.INFO,
+                    "Manual Infeed Jog: Product added to grouping buffer",
+                )
+
+        # 2. Jog Blank Feed: Force internal state into BLANK_FEED phase.
+        if cmd.get("jog_blank_feed"):
+            sts["cycle_phase"] = CyclePhase.BLANK_FEED.value
+            sts["cycle_phase_progress"] = 0.0  # Reset progress to start animation
+            self._log_event(
+                "MANUAL_JOG_BLANK",
+                "MANUAL",
+                Severity.INFO,
+                "Manual Blank Feed Jog: Blank cycle triggered",
+            )
+
+        # 3. Jog Pack Advance: Step to the next phase in the packing cycle.
+        if cmd.get("jog_pack_advance"):
+            current_phase = CyclePhase(sts["cycle_phase"])
+            phases = list(CyclePhase)
+            try:
+                curr_idx = phases.index(current_phase)
+                next_idx = (curr_idx + 1) % len(phases)
+                new_phase = phases[next_idx]
+                sts["cycle_phase"] = new_phase.value
+                sts["cycle_phase_progress"] = 0.0
+                self._log_event(
+                    "MANUAL_JOG_ADVANCE",
+                    "MANUAL",
+                    Severity.INFO,
+                    f"Manual Cycle Advance: Phase jumped to {new_phase.value}",
+                )
+            except (ValueError, IndexError):
+                sts["cycle_phase"] = CyclePhase.IDLE.value
+
     # ------------------------------------------------------------------ #
-    #  State Transitions                                                 #
+    #  State & Cycle Processing                                          #
     # ------------------------------------------------------------------ #
 
     def _process_state_transitions(self, dt: float) -> None:
+        """Central logic for machine state evolution based on inputs/commands."""
         sts = self.tags.state.sts
         inputs = self.tags.state.inputs
         evt = self.tags.state.evt
+
+        # If in MANUAL mode, skip automatic state transitions and cycle logic
+        if sts["machine_mode"] == MachineMode.MANUAL.value:
+            self._process_manual_jog_commands()
+            return
 
         prev_state = sts["machine_state"]
 

@@ -40,6 +40,9 @@ class TagStore:
                 "clear_counts": False,
                 "refill_blanks": False,
                 "clear_rejects": False,
+                "jog_infeed": False,
+                "jog_blank_feed": False,
+                "jog_pack_advance": False,
             },
             cfg={
                 "active_recipe_id": "24-pack",
@@ -325,5 +328,5 @@ class TagStore:
 
     def pulse_clear(self) -> None:
         """Clear pulse-style commands after a scan/update loop."""
-        for key in ("start", "stop", "reset", "run_empty", "ack_alarm", "clear_counts", "refill_blanks", "clear_rejects"):
+        for key in ("start", "stop", "reset", "run_empty", "ack_alarm", "clear_counts", "refill_blanks", "clear_rejects", "jog_infeed", "jog_blank_feed", "jog_pack_advance"):
             self.state.cmd[key] = False

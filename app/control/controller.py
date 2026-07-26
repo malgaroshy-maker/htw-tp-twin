@@ -246,6 +246,27 @@ class PLCStyleController:
         self.tags.write_cmd("clear_rejects", True)
         return True
 
+    def jog_infeed(self) -> bool:
+        """Jog: spawn one product into grouping buffer. MANUAL mode only."""
+        if self.tags.state.sts["machine_mode"] != MachineMode.MANUAL.value:
+            return False
+        self.tags.write_cmd("jog_infeed", True)
+        return True
+
+    def jog_blank_feed(self) -> bool:
+        """Jog: trigger one blank feed cycle. MANUAL mode only."""
+        if self.tags.state.sts["machine_mode"] != MachineMode.MANUAL.value:
+            return False
+        self.tags.write_cmd("jog_blank_feed", True)
+        return True
+
+    def jog_pack_advance(self) -> bool:
+        """Jog: advance the current cycle phase one step. MANUAL mode only."""
+        if self.tags.state.sts["machine_mode"] != MachineMode.MANUAL.value:
+            return False
+        self.tags.write_cmd("jog_pack_advance", True)
+        return True
+
 
     def _evaluate_permissives(self) -> None:
         """Consolidated start permissive logic including sensor checks."""

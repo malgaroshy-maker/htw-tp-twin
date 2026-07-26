@@ -127,6 +127,12 @@ export function ThreeDSimPage() {
                 <span className={`rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.2em] ${statusTone}`}>
                   {machineState}
                 </span>
+                {state?.sts?.machine_mode === 'MANUAL' && (
+                  <span className="flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-amber-300">
+                    <div className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
+                    Manual
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -169,6 +175,7 @@ export function ThreeDSimPage() {
                 layerVisibility={viewerLayers}
                 controlsEnabled
                 showSceneHud={false}
+                sendCommand={sendCommand}
               />
             </Suspense>
 
