@@ -10,10 +10,32 @@ ENV/
 env/
 .env
 
-# pytest
+# pytest / tooling caches
 .pytest_cache/
+.ruff_cache/
 .coverage
 htmlcov/
+
+# Packaging
+*.egg-info/
+
+# Runtime data (SQLite event store — regenerated on run)
+data/
+*.db
+*.db-shm
+*.db-wal
+
+# Throwaway tool output (was previously committed by accident)
+test_out*.txt
+test_output*.txt
+test_results*.txt
+utf8_test_results.txt
+lint_output*
+eslint_*.txt
+eslint.json
+
+# Playwright captures — regenerate with `npm run capture3d`
+docs/3d-rebuild/captures/
 
 # Node / Frontend
 node_modules/
