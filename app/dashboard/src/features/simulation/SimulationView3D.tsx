@@ -41,6 +41,15 @@ import { damp, FOLLOW_LAMBDA } from './animation/constants';
 import './simulation.css';
 
 
+const { zones, blankPath, deckHeights } = MACHINE_LAYOUT_3D;
+
+/**
+ * `SensorPost` centres its stalk on the given Y and puts the head 0.55 above, so
+ * this places the head level with the middle of the pack passing the discharge.
+ */
+const SENSOR_POST_Y = deckHeights.products + PRODUCT_SIZE_3D[1] * 0.3 - 0.55;
+const SENSOR_LABEL_Y = SENSOR_POST_Y + 1.1;
+
 type CameraPresetKey = 'overview' | 'grouping' | 'transfer' | 'tray' | 'transport' | 'discharge';
 
 interface ViewerLayerState {
@@ -158,18 +167,25 @@ function MachineScene({
       !model
         ? []
         : [
-            { id: 'mag', position: [-13.0, 0.16, 7.0], text: 'BLANK MAGAZINE', active: model.phase === 'BLANK_FEED' },
-            { id: 'cross', position: [-7.6, 0.16, 5.9], text: 'CROSS TRANSFER', active: model.phase === 'BLANK_FEED' },
-            { id: 'withdraw', position: [-4.2, 0.16, 4.4], text: 'BLANK WITHDRAW', active: model.phase === 'BLANK_FEED' || model.phase === 'TRANSFER' },
-            { id: 'grouping', position: [-6.0, 0.16, -6.6], text: 'SEPARATOR + GROUPING', active: model.phase === 'GROUPING' || model.phase === 'CAPTURED' },
-            { id: 'chain', position: [3.3, 0.16, -6.4], text: 'CHAIN INFEED', active: model.phase === 'TRANSFER' },
-            { id: 'gap', position: [2.6, 0.16, 2.9], text: 'GAP SENSOR + 3D CHECK', active: model.gapSensorActive || model.completenessCameraActive },
-            { id: 'transport', position: [9.6, 0.16, -6.4], text: 'MAIN TRANSPORT', active: model.phase === 'PACKING' || model.phase === 'DISCHARGE' },
+            /*
+             * Anchors are floor placards, so their Z is free — but their X must
+             * be the station's own X or the placard names the wrong machine.
+             * Three of them drifted: BLANK WITHDRAW sat 2.2 downstream of
+             * `blankWithdraw`, SEPARATOR + GROUPING 1.4 upstream of `grouping`,
+             * and OUTFEED at x 19, past the end of the machine base at 18.25.
+             */
+            { id: 'mag', position: [zones.blankMagazine.x, 0.16, 7.0], text: 'BLANK MAGAZINE', active: model.phase === 'BLANK_FEED' },
+            { id: 'cross', position: [zones.crossTransfer.x, 0.16, 5.9], text: 'CROSS TRANSFER', active: model.phase === 'BLANK_FEED' },
+            { id: 'withdraw', position: [zones.blankWithdraw.x, 0.16, 4.4], text: 'BLANK WITHDRAW', active: model.phase === 'BLANK_FEED' || model.phase === 'TRANSFER' },
+            { id: 'grouping', position: [zones.grouping.x, 0.16, -6.6], text: 'SEPARATOR + GROUPING', active: model.phase === 'GROUPING' || model.phase === 'CAPTURED' },
+            { id: 'chain', position: [zones.transfer.x, 0.16, -6.4], text: 'CHAIN INFEED', active: model.phase === 'TRANSFER' },
+            { id: 'gap', position: [zones.transfer.x - 1.35, 0.16, 2.9], text: 'GAP SENSOR + 3D CHECK', active: model.gapSensorActive || model.completenessCameraActive },
+            { id: 'transport', position: [zones.mainTransport.x, 0.16, -6.4], text: 'MAIN TRANSPORT', active: model.phase === 'PACKING' || model.phase === 'DISCHARGE' },
             { id: 'glue', position: [11.9, 0.16, 2.9], text: 'GLUE + GUIDES', active: model.phase === 'PACKING' || model.phase === 'DISCHARGE' },
-            { id: 'outfeed', position: [19.0, 0.16, -2.6], text: 'OUTFEED', active: model.phase === 'DISCHARGE' },
-            { id: 'reject', position: [16.4, 0.16, 6.9], text: 'REJECT CONVEYOR', active: model.rejectCount > 0 || model.rejectActive },
-            { id: 'outlet', position: [16.7, 4.28, 1.35], text: 'OUTLET', active: !model.rejectActive && model.phase === 'DISCHARGE', kind: 'sensor' as const },
-            { id: 'plate', position: [16.0, 4.28, -1.35], text: 'PLATE', active: model.phase === 'DISCHARGE', kind: 'sensor' as const },
+            { id: 'outfeed', position: [zones.discharge.x, 0.16, -2.6], text: 'OUTFEED', active: model.phase === 'DISCHARGE' },
+            { id: 'reject', position: [zones.rejectBranch.x, 0.16, 6.9], text: 'REJECT CONVEYOR', active: model.rejectCount > 0 || model.rejectActive },
+            { id: 'outlet', position: [16.7, SENSOR_LABEL_Y, 1.35], text: 'OUTLET', active: !model.rejectActive && model.phase === 'DISCHARGE', kind: 'sensor' as const },
+            { id: 'plate', position: [16.0, SENSOR_LABEL_Y, -1.35], text: 'PLATE', active: model.phase === 'DISCHARGE', kind: 'sensor' as const },
     ],
     [model]
   );
@@ -177,7 +193,6 @@ function MachineScene({
   if (!model) return null;
 
   const phaseActive = (phase: string) => model.phase === phase;
-  const { zones, blankPath } = MACHINE_LAYOUT_3D;
 
 
   return (
@@ -323,8 +338,9 @@ function MachineScene({
 
       {layerVisibility.sensors && (
         <group>
-          <SensorPost position={[16.7, 3.08, 1.35]} active={!model.rejectActive && model.phase === 'DISCHARGE'} />
-          <SensorPost position={[16.0, 3.08, -1.35]} active={model.phase === 'DISCHARGE'} />
+          {/* Photo-eyes on the discharge, heads level with the pack they watch. */}
+          <SensorPost position={[16.7, SENSOR_POST_Y, 1.35]} active={!model.rejectActive && model.phase === 'DISCHARGE'} />
+          <SensorPost position={[16.0, SENSOR_POST_Y, -1.35]} active={model.phase === 'DISCHARGE'} />
           <LabelProjector labels={sceneLabels} containerRef={labelContainerRef} />
         </group>
       )}

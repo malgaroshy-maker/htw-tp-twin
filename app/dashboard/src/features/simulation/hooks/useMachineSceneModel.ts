@@ -11,16 +11,12 @@ export interface MachineSceneModel {
   colCount: number;
   groupedCount: number;
   laneFillCounts: number[];
-  targetGroupCount: number;
   currentLane: number;
   blankVisible: boolean;
   blankX: number;
-  blankY: number;
   blankZ: number;
-  blankPitch: number;
   slugVisible: boolean;
   slugX: number;
-  slugCompression: number;
   sidePusherProgress: number;
   chainInfeedActive: boolean;
   chainInfeedOffset: number;
@@ -36,7 +32,6 @@ export interface MachineSceneModel {
   guideActive: boolean;
   rejectActive: boolean;
   rejectCount: number;
-  lastRejectReason: string;
   faultCode: string;
   warningCode: string;
   phaseDescription: string;
@@ -52,8 +47,6 @@ export interface MachineSceneModel {
   terminalClosed: boolean;
   /** Divider gap sensor: clear enough for the divider to swing. */
   dividerGapClear: boolean;
-  /** Lane filling matches the virtual model. */
-  laneFillOk: boolean;
 }
 
 function lerp(from: number, to: number, t: number) {
@@ -95,9 +88,7 @@ export function useMachineSceneModel(state: SimulatorState | null): MachineScene
 
     const { blankPath, productPath } = MACHINE_LAYOUT_3D;
     let blankX = blankPath.magazineStartX;
-    let blankY = blankPath.lowY;
     const blankZ = blankPath.z;
-    let blankPitch = 0;
     if (phase === 'BLANK_FEED') {
       blankX = visualProgress < 0.25
         ? lerp(blankPath.crossTransferX, blankPath.blankWithdrawX, visualProgress / 0.25)
@@ -110,20 +101,16 @@ export function useMachineSceneModel(state: SimulatorState | null): MachineScene
       blankX = lerp(blankPath.packingX, blankPath.dischargeX, visualProgress);
     }
 
-    if (blankX <= blankPath.rampStartX) {
-      blankY = blankPath.lowY;
-      blankPitch = 0;
-    } else if (blankX < blankPath.transferX) {
-      const ascentT = smoothstep((blankX - blankPath.rampStartX) / (blankPath.transferX - blankPath.rampStartX));
-      blankY = lerp(blankPath.lowY, blankPath.transferY, ascentT);
-      blankPitch = lerp(0, -0.34, Math.sin(ascentT * Math.PI));
-    } else {
-      blankY = blankPath.transferY;
-      blankPitch = 0;
-    }
+    /*
+     * The blank's Y and pitch are NOT computed here. `sampleBlankPath` derives
+     * both from X, and every consumer (FlatBlank, BlankDrivers, BlankLiftPath)
+     * already calls it. This hook used to compute a second version off
+     * `blankPath.lowY` (1.08) where the path function uses
+     * `deckHeights.lowTransport + 0.1` (0.98) — two disagreeing answers, of which
+     * nothing consumed the one computed here.
+     */
 
     let slugX = productPath.clampX;
-    let slugCompression = 0;
     let slugOpacity = 0;
     let sidePusherProgress = 0;
     if (phase === 'CAPTURED') {
@@ -132,17 +119,14 @@ export function useMachineSceneModel(state: SimulatorState | null): MachineScene
       sidePusherProgress = 0.12;
     } else if (phase === 'BLANK_FEED') {
       slugX = productPath.clampX;
-      slugCompression = 0.18 + Math.min(visualProgress / 0.85, 0.34);
       slugOpacity = 1;
       sidePusherProgress = 0.2 + Math.min(visualProgress / 0.85, 0.32);
     } else if (phase === 'TRANSFER') {
       slugX = lerp(productPath.clampX + 0.2, productPath.transferX + 0.55, visualProgress);
-      slugCompression = 0.56 + Math.min(visualProgress / 0.72, 0.44);
       slugOpacity = lerp(1, 0.45, Math.min(visualProgress, 0.8) / 0.8);
       sidePusherProgress = 0.52 + Math.min(visualProgress / 0.78, 0.48);
     } else if (phase === 'PACKING') {
       slugX = lerp(productPath.packStartX, productPath.packStartX + 1.4, Math.min(visualProgress, 0.25) / 0.25);
-      slugCompression = 0.86 + Math.min(visualProgress / 0.52, 0.14);
       slugOpacity = visualProgress < 0.38
         ? 0.36
         : lerp(0.36, 0, Math.min((visualProgress - 0.38) / 0.42, 1));
@@ -179,16 +163,12 @@ export function useMachineSceneModel(state: SimulatorState | null): MachineScene
       colCount,
       groupedCount: out.grouped_count,
       laneFillCounts,
-      targetGroupCount,
       currentLane,
       blankVisible: phase === 'BLANK_FEED' || phase === 'TRANSFER' || phase === 'PACKING',
       blankX,
-      blankY,
       blankZ,
-      blankPitch,
       slugVisible: slugOpacity > 0.02,
       slugX,
-      slugCompression,
       sidePusherProgress,
       chainInfeedActive: phase === 'BLANK_FEED' || phase === 'TRANSFER' || phase === 'CAPTURED',
       chainInfeedOffset: visualProgress,
@@ -204,7 +184,6 @@ export function useMachineSceneModel(state: SimulatorState | null): MachineScene
       guideActive: phase === 'PACKING' || phase === 'DISCHARGE',
       rejectActive: phase === 'DISCHARGE' && (sns.open_flap_detected || !sns.tray_plate_sensor_ok),
       rejectCount: out.reject_accumulation_count,
-      lastRejectReason: out.last_reject_reason,
       faultCode: state.fault.active_code,
       warningCode: state.warn.active_code,
       phaseDescription: PHASE_DESCRIPTIONS[phase] ?? 'Machine cycle in progress.',
@@ -213,7 +192,6 @@ export function useMachineSceneModel(state: SimulatorState | null): MachineScene
       stopperClosed: sns.stopper_closed ?? false,
       terminalClosed: sns.terminal_closed ?? false,
       dividerGapClear: sns.divider_gap_clear ?? true,
-      laneFillOk: sns.lane_fill_ok ?? true,
       machineMode: sts.machine_mode,
       isManualMode: sts.machine_mode === 'MANUAL',
     };

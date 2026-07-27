@@ -549,3 +549,42 @@ only), `glueSeal` (carton) and `amberStatic` (divider).
 `EdgeFlapFolders` also built its torus blade in a `useMemo` and never disposed
 it — one leaked geometry per mount, of the exact kind the refcounted cache
 exists to prevent. Now a module-level constant.
+
+### Second pass: the static frame and the blank path
+
+The first pass fixed the moving stations. Re-running the same two questions over
+the static structure and the handover points found seven more.
+
+**The blank arrived 0.62 below the deck it is pushed onto.**
+`blankPath.transferY` was 2.82 while `deckHeights.products` is 3.44, so the lift
+ramp delivered the blank *under* the transfer deck, the chain infeed pushed the
+formation onto nothing, and the pack jumped 0.62 upward the instant the blank
+became a carton. `sampleBlankPath` and `BlankLiftPath` both read this value, so
+correcting it moves the ramp, its rails, the drivers and the travelling blank
+together — the payoff for having one path function.
+
+**A second, disagreeing blank path.** `useMachineSceneModel` computed `blankY` and
+`blankPitch` off `blankPath.lowY` (1.08) while `sampleBlankPath` uses
+`deckHeights.lowTransport + 0.1` (0.98). Nothing consumed the hook's version —
+`FlatBlank` takes only x and z and samples the path itself. Deleted, along with
+four other fields (`slugCompression`, `targetGroupCount`, `lastRejectReason`,
+`laneFillOk`) that were recomputed on every poll and read by nobody.
+
+**Structure that had not followed its station.**
+
+- The divider's frame pedestal stayed at x = -12.3 when the divider moved to
+  -11.6, so the divider stood beside its own bed. Now imports `DIVIDER_X`.
+- `highTransportDeck` ran to x = 20.1 against a base shell ending at 18.25 —
+  nearly two units of deck hanging off the end of the machine.
+- `TrayStation`'s blank hold-downs were positioned on where the inner shaft used
+  to be. Now bracket `SHAFT_X`.
+- The reject branch was keyed to `deckHeights.high`, so after the pack was raised
+  onto the chain it discharged at 3.46 into a chute at 2.96.
+- Three floor placards named the wrong station: BLANK WITHDRAW sat 2.2 downstream
+  of `zones.blankWithdraw`, SEPARATOR + GROUPING 1.4 upstream of `zones.grouping`,
+  and OUTFEED at x = 19, past the end of the machine. All anchors now read their X
+  from the zone table.
+
+Camera presets and flow arrows were checked against the same table and are
+correct; `TransportGuides` was already fully derived from the tray footprint and
+needed no change.

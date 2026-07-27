@@ -3,6 +3,7 @@ import { MACHINE_LAYOUT_3D } from '../../../machineLayout';
 import { materials } from '../../core/materials';
 import { useMergedParts } from '../../core/useMergedParts';
 import type { StaticPart } from '../../core/merge';
+import { DIVIDER_X } from '../product/groupingGeometry';
 
 const { frame, zones, supports } = MACHINE_LAYOUT_3D;
 
@@ -134,8 +135,10 @@ const STATIC_PARTS: StaticPart[] = [
     ...RECEIVE,
   },
 
-  // Divider bed and transfer bed
-  { mat: 'frame', size: [1.3, 0.22, 5.8], pos: [-12.3, 2.88, 0], ...CAST },
+  // Divider bed and transfer bed. The pedestal follows `DIVIDER_X` — it was
+  // pinned at -12.3, the divider's old position, so the divider stood beside its
+  // own bed rather than on it.
+  { mat: 'frame', size: [2.2, 0.22, 5.8], pos: [DIVIDER_X, 2.88, 0], ...CAST },
   { mat: 'frame', size: [0.28, 0.34, 4.4], pos: [3.8, 2.88, 0], ...CAST },
   ...[-1.5, 1.5].map((z) => ({
     mat: 'frameDark' as const,

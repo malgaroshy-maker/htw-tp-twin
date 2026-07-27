@@ -36,8 +36,15 @@ const BRANCH_X = zones.discharge.x;
 const TRACK_Z0 = TRAY_Z / 2 + 0.9;
 const TRACK_LEN = ROLLER_COUNT * ROLLER_PITCH;
 const TRACK_Z_MID = TRACK_Z0 + TRACK_LEN / 2;
-/** Just below the deck, so a pack rolls off rather than dropping to it. */
-const TRACK_Y = deckHeights.high - 0.24;
+/**
+ * Just below the deck, so a pack rolls off rather than dropping to it.
+ *
+ * Keyed to `deckHeights.products` — the surface a pack actually leaves the
+ * transport on — not to `deckHeights.high`, which is the frame deck 0.42 lower.
+ * A pack discharging at 3.46 met a chute at 2.96 and fell half a unit onto it.
+ */
+const DISCHARGE_Y = deckHeights.products;
+const TRACK_Y = DISCHARGE_Y - 0.24;
 const TRACK_W = TRAY_X * 0.8;
 
 /** Resting position of the nth accumulated reject, stacking away from the machine. */
@@ -50,7 +57,7 @@ const TRACK_PARTS: StaticPart[] = [
   {
     mat: 'frame',
     size: [TRACK_W, 0.06, 1.3],
-    pos: [BRANCH_X, deckHeights.high - 0.06, TRAY_Z / 2 + 0.35],
+    pos: [BRANCH_X, DISCHARGE_Y - 0.06, TRAY_Z / 2 + 0.35],
     rot: [-0.22, 0, 0],
     receiveShadow: true,
   },
@@ -95,13 +102,13 @@ const TRACK_PARTS: StaticPart[] = [
   {
     mat: 'beltBlueDeep',
     size: [4.2, 0.05, TRAY_Z + 0.5],
-    pos: [BRANCH_X + 3.0, deckHeights.high - 0.02, 0],
+    pos: [BRANCH_X + 3.0, DISCHARGE_Y - 0.02, 0],
     receiveShadow: true,
   },
   ...[-1, 1].map((sign) => ({
     mat: 'steelDark' as const,
     size: [4.2, 0.16, 0.06] as [number, number, number],
-    pos: [BRANCH_X + 3.0, deckHeights.high + 0.06, sign * (TRAY_Z / 2 + 0.28)] as [
+    pos: [BRANCH_X + 3.0, DISCHARGE_Y + 0.06, sign * (TRAY_Z / 2 + 0.28)] as [
       number,
       number,
       number,

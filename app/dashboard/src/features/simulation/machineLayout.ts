@@ -31,7 +31,9 @@ export const MACHINE_LAYOUT_3D = {
     lowDeck: { x: -5.0, y: 0.68, z: 2.35, width: 21.6, height: 0.22, depth: 3.2 },
     highGroupingDeck: { x: -5.4, y: 2.82, z: 0, width: 13.0, height: 0.18, depth: 7.1 },
     highTransferDeck: { x: 3.2, y: 2.98, z: 0, width: 5, height: 0.2, depth: 6.3 },
-    highTransportDeck: { x: 12.6, y: 2.98, z: 0, width: 15, height: 0.2, depth: 4.9 },
+    // Ends flush with the base shell (x 18.25). At width 15 centred on 12.6 it
+    // reached 20.1, hanging nearly two units off the end of the machine.
+    highTransportDeck: { x: 11.65, y: 2.98, z: 0, width: 13.1, height: 0.2, depth: 4.9 },
   },
   supports: [
     [-15.6, 1.38, 3.7],
@@ -75,8 +77,15 @@ export const MACHINE_LAYOUT_3D = {
     packingX: 6.1,
     dischargeX: 16.0,
     z: 2.2,
-    lowY: 1.08,
-    transferY: 2.82,
+    /*
+     * The blank is lifted to the surface the formation is pushed across, so this
+     * must be `deckHeights.products`. It was 2.82 — 0.62 below it — so the blank
+     * arrived under the transfer deck and the chain infeed pushed the formation
+     * onto nothing, then the pack jumped 0.62 upward the moment the blank became
+     * a carton. `sampleBlankPath` and `BlankLiftPath` both read this, so the
+     * ramp, its rails and the travelling blank all move together.
+     */
+    transferY: 3.44,
   },
   productPath: {
     infeedX: -15.4,
