@@ -23,6 +23,7 @@ import { ChainInfeed } from './scene3d/parts/product/ChainInfeed';
 import { SidePushers } from './scene3d/parts/product/SidePushers';
 import { GroupedLaneFill } from './scene3d/parts/product/GroupedLaneFill';
 import { SuctionArm } from './scene3d/parts/blank/SuctionArm';
+import { InnerMagazine } from './scene3d/parts/blank/InnerMagazine';
 import { FlatBlank } from './scene3d/parts/blank/FlatBlank';
 import { BlankLiftPath } from './scene3d/parts/static/BlankLiftPath';
 import { DividerModule } from './scene3d/parts/product/DividerModule';
@@ -180,7 +181,16 @@ function MachineScene({
       {layerVisibility.tray && (
         <group>
           <TrayStation />
-          <SuctionArm active={model.phase === 'BLANK_FEED'} progress={model.phaseProgress} z={blankPath.z} />
+          <InnerMagazine
+            blanksRemaining={Math.max(0, Math.min(1, model.blanksRemaining / 100))}
+            lowLevel={model.blanksRemaining < 15}
+          />
+          <SuctionArm
+            active={model.phase === 'BLANK_FEED'}
+            progress={model.phaseProgress}
+            z={blankPath.z}
+            vacuumOk={model.vacuumOk}
+          />
           <BlankLiftPath />
           <FlowArrow position={[-11.4, 1.32, zones.blankMagazine.z]} length={3.6} active={phaseActive('BLANK_FEED')} color="#F59E0B" />
           <FlowArrow position={[-4.4, 1.18, blankPath.z]} length={11.8} active={phaseActive('BLANK_FEED') || phaseActive('TRANSFER')} color="#F59E0B" />

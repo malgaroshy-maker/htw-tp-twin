@@ -43,6 +43,10 @@ export interface MachineSceneModel {
   phaseDescription: string;
   machineMode: string;
   isManualMode: boolean;
+  /** Blanks left in the inner guide shaft (sns.blanks_remaining). */
+  blanksRemaining: number;
+  /** Vacuum applied at the suction cups; shut off at the arm's lower end position. */
+  vacuumOk: boolean;
 }
 
 function lerp(from: number, to: number, t: number) {
@@ -202,6 +206,8 @@ export function useMachineSceneModel(state: SimulatorState | null): MachineScene
       faultCode: state.fault.active_code,
       warningCode: state.warn.active_code,
       phaseDescription: PHASE_DESCRIPTIONS[phase] ?? 'Machine cycle in progress.',
+      blanksRemaining: out.blanks_remaining ?? 0,
+      vacuumOk: sns.tray_vacuum_ok ?? false,
       machineMode: sts.machine_mode,
       isManualMode: sts.machine_mode === 'MANUAL',
     };

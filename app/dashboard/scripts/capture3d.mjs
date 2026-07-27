@@ -114,7 +114,7 @@ async function main() {
 
   // Per-station close-ups. Phase 6 checks each station against its OEM figure,
   // and the overview camera is far too wide to judge geometry at that level.
-  for (const preset of ['Grouping', 'Transfer', 'Main Transport', 'Discharge']) {
+  for (const preset of ['Grouping', 'Transfer', 'Tray Infeed', 'Main Transport', 'Discharge']) {
     const button = page.getByRole('button', { name: preset, exact: true });
     if ((await button.count()) === 0) continue;
     await button.first().click();

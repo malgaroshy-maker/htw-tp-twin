@@ -254,9 +254,27 @@ against an end stop (OI 5-25, OT p12). Previously one continuous pile.
 Five applicator heads instead of two, staggered three/two across the rails per the
 CAD detail (OI 5-38 item 7, which labels "7" five times).
 
-### Not done in Phase 6
+### 6c — inner blank guide shaft (done)
 
-- **6c** inner blank guide shaft / internal tray magazine — an entire station absent
+The mechanism was modelled wrongly. The cross transfer does **not** feed the
+suction arm directly: it fills a vertical **inner guide shaft** (the "internal
+tray magazine"), and the suction arm reaches up, grips the lowest blank and
+draws it **downward** out of the shaft onto the blank transport. Vacuum is cut
+at the arm's lower end position (OI 5-33; corroborated by the "Maximum Level
+internal Traymagazin" sensor).
+
+Added `InnerMagazine` — corner guide posts, retaining plates, an instanced blank
+stack bound to `blanks_remaining`, and the minimum-count sensor at the mouth.
+`SuctionArm` reworked from a vague dip into a real two-stroke cycle: descend
+carrying the blank with vacuum on (t 0–0.5), return empty with vacuum off
+(t 0.5–1).
+
+**Bug caught while wiring this:** `blanks_remaining` lives in the `out` tag
+group, not `sns`. The first version read `sns.blanks_remaining`, which is
+`undefined`, so the shaft rendered permanently empty. Verified against the live
+API rather than assumed.
+
+### Not done in Phase 6
 - **6d** separator, width adjustment, side frames, stopper, terminal
 - **6e** portal arch and five pusher plates at the chain infeed
 - **6f** blank transport drivers and curved guide plate

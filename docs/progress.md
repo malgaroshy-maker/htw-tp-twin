@@ -62,7 +62,7 @@ Four problems, all confirmed with the user:
 | 3 | Motion smoothing | **Partial** — damped follow in place; full `SceneMotion` refactor outstanding |
 | 4 | Static geometry merging | **Done** — draw calls 273 -> 160; ≤60 target still not met |
 | 5 | Lighting and materials | **Done** |
-| 6 | Geometry corrections + missing stations (6a–6h) | **Partial** — 6a proportions, 6b magazine, 6g glue heads done; 6c–6f and most of 6g/6h remain |
+| 6 | Geometry corrections + missing stations (6a–6h) | **Partial** — 6a proportions, 6b magazine, 6c inner guide shaft, 6g glue heads done; 6d–6f and most of 6g/6h remain |
 | 7 | Overlay cleanup (`<Html>` 15 → ≤4) | Not started |
 
 ### Measured results so far
