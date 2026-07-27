@@ -3,7 +3,7 @@ import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { geometries } from '../../core/geometries';
 import { materials } from '../../core/materials';
-import { mergeStaticParts } from '../../core/merge';
+import { useMergedParts } from '../../core/useMergedParts';
 import type { StaticPart } from '../../core/merge';
 import { MACHINE_LAYOUT_3D } from '../../../machineLayout';
 import { sampleBlankPath } from '../../core/mathUtils';
@@ -49,7 +49,7 @@ export const BlankDrivers = memo(function BlankDrivers({ running }: { running: b
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const dummy = useMemo(() => new THREE.Object3D(), []);
   const offset = useRef(0);
-  const guide = useMemo(() => mergeStaticParts(GUIDE_PLATE), []);
+  const guide = useMergedParts('BlankDrivers', () => GUIDE_PLATE);
 
   useFrame((_, delta) => {
     const mesh = meshRef.current;

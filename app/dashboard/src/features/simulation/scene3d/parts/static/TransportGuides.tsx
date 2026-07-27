@@ -1,6 +1,6 @@
-import { memo, useMemo } from 'react';
+import { memo } from 'react';
 import { materials } from '../../core/materials';
-import { mergeStaticParts } from '../../core/merge';
+import { useMergedParts } from '../../core/useMergedParts';
 import type { StaticPart } from '../../core/merge';
 import { MACHINE_LAYOUT_3D, TRAY_SIZE_3D, PRODUCT_SIZE_3D } from '../../../machineLayout';
 
@@ -91,7 +91,7 @@ const PARTS: StaticPart[] = [
 ];
 
 export const TransportGuides = memo(function TransportGuides() {
-  const groups = useMemo(() => mergeStaticParts(PARTS), []);
+  const groups = useMergedParts('TransportGuides', () => PARTS);
   const mats = materials();
 
   return (

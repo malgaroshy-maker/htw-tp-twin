@@ -1,7 +1,7 @@
-import { memo, useMemo } from 'react';
+import { memo } from 'react';
 import { MACHINE_LAYOUT_3D } from '../../../machineLayout';
 import { materials } from '../../core/materials';
-import { mergeStaticParts } from '../../core/merge';
+import { useMergedParts } from '../../core/useMergedParts';
 import type { StaticPart } from '../../core/merge';
 
 const { frame, zones, supports } = MACHINE_LAYOUT_3D;
@@ -153,7 +153,7 @@ const STATIC_PARTS: StaticPart[] = [
 
 export const MachineFrame = memo(function MachineFrame() {
   // Baked once. The parts never move, so this never needs to run again.
-  const groups = useMemo(() => mergeStaticParts(STATIC_PARTS), []);
+  const groups = useMergedParts('MachineFrame', () => STATIC_PARTS);
   const mats = materials();
 
   return (

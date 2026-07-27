@@ -1,6 +1,6 @@
-import { memo, useMemo } from 'react';
+import { memo } from 'react';
 import { materials } from '../../core/materials';
-import { mergeStaticParts } from '../../core/merge';
+import { useMergedParts } from '../../core/useMergedParts';
 import type { StaticPart } from '../../core/merge';
 import { MACHINE_LAYOUT_3D } from '../../../machineLayout';
 import { lerp, smoothstep } from '../../core/mathUtils';
@@ -50,7 +50,7 @@ function buildRamp(yStart: number, yEnd: number): Segment[] {
  * material rather than 38 draw calls.
  */
 export const BlankLiftPath = memo(function BlankLiftPath() {
-  const groups = useMemo(() => {
+  const groups = useMergedParts('BlankLiftPath', () => {
     const { blankPath, zones, deckHeights } = MACHINE_LAYOUT_3D;
     const rampStart = blankPath.rampStartX;
     const lowerLength = zones.blankTransport.width + (zones.blankTransport.x - rampStart);
@@ -89,8 +89,8 @@ export const BlankLiftPath = memo(function BlankLiftPath() {
         })),
       ]),
     ];
-    return mergeStaticParts(parts);
-  }, []);
+    return parts;
+  });
 
   const mats = materials();
   return (

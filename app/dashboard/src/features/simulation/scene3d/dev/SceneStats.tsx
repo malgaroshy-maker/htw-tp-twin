@@ -1,5 +1,6 @@
 import { useFrame, useThree } from '@react-three/fiber';
 import { useRef } from 'react';
+import { liveMergedGeometryCount } from '../core/merge';
 
 declare global {
   interface Window {
@@ -12,6 +13,7 @@ declare global {
       fps: number;
       meshes: number;
       shadowCasters: number;
+      mergedGeometries: number;
     };
   }
 }
@@ -54,6 +56,7 @@ export function SceneStats() {
     window.__sceneStats = {
       meshes,
       shadowCasters,
+      mergedGeometries: liveMergedGeometryCount(),
       calls: gl.info.render.calls,
       triangles: gl.info.render.triangles,
       programs: gl.info.programs?.length ?? 0,

@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { geometries } from '../../core/geometries';
 import { Box } from '../../core/primitives';
 import { materials } from '../../core/materials';
-import { mergeStaticParts } from '../../core/merge';
+import { useMergedParts } from '../../core/useMergedParts';
 import type { StaticPart } from '../../core/merge';
 import { MACHINE_LAYOUT_3D } from '../../../machineLayout';
 
@@ -77,7 +77,7 @@ export const RejectConveyor = memo(function RejectConveyor({
   liveRejectActive: boolean;
   liveRejectX: number;
 }) {
-  const track = useMemo(() => mergeStaticParts(TRACK_PARTS), []);
+  const track = useMergedParts('RejectConveyor', () => TRACK_PARTS);
   const mats = materials();
   const storedRef = useRef<THREE.InstancedMesh>(null);
   const dummy = useMemo(() => new THREE.Object3D(), []);

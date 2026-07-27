@@ -1,8 +1,8 @@
-import { memo, useMemo, useRef } from 'react';
+import { memo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import type { Group } from 'three';
 import { materials } from '../../core/materials';
-import { mergeStaticParts } from '../../core/merge';
+import { useMergedParts } from '../../core/useMergedParts';
 import type { StaticPart } from '../../core/merge';
 import { MACHINE_LAYOUT_3D, TRAY_SIZE_3D, PRODUCT_SIZE_3D } from '../../../machineLayout';
 
@@ -68,14 +68,14 @@ export const TransportChains = memo(function TransportChains({
   const upperRef = useRef<Group>(null);
   const offset = useRef(0);
 
-  const lower = useMemo(
-    () => mergeStaticParts([...buildCarriers('chainGreen'), ...buildStrands('chainGreenDark')]),
-    []
-  );
-  const upper = useMemo(
-    () => mergeStaticParts([...buildCarriers('chainGreenDark'), ...buildStrands('chainGreen')]),
-    []
-  );
+  const lower = useMergedParts('TransportChains.lower', () => [
+    ...buildCarriers('chainGreen'),
+    ...buildStrands('chainGreenDark'),
+  ]);
+  const upper = useMergedParts('TransportChains.upper', () => [
+    ...buildCarriers('chainGreenDark'),
+    ...buildStrands('chainGreen'),
+  ]);
 
   useFrame((_, delta) => {
     if (running) offset.current = (offset.current + delta * 1.6) % CARRIER_PITCH;

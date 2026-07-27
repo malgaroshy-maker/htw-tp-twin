@@ -90,6 +90,7 @@ export function mergeStaticParts(parts: StaticPart[]): MergedGroup[] {
     // mergeGeometries clones into a new buffer; the sources are now dead weight.
     for (const g of geos) g.dispose();
     if (!merged) continue;
+    live += 1;
     groups.push({
       key,
       mat: part.mat,
@@ -102,5 +103,21 @@ export function mergeStaticParts(parts: StaticPart[]): MergedGroup[] {
 }
 
 export function disposeMergedGroups(groups: MergedGroup[]) {
-  for (const g of groups) g.geometry.dispose();
+  for (const g of groups) {
+    g.geometry.dispose();
+    live -= 1;
+  }
+}
+
+/**
+ * Count of merged geometries currently alive.
+ *
+ * Merged buffers are built per component instance, so a component that mounts
+ * and unmounts repeatedly (navigating to /3dsim and back) leaks one buffer per
+ * merge group per mount unless it disposes. This counter makes that visible to
+ * the capture harness.
+ */
+let live = 0;
+export function liveMergedGeometryCount() {
+  return live;
 }

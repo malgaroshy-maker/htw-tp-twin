@@ -1,9 +1,9 @@
-import { memo, useMemo, useRef } from 'react';
+import { memo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import type { Mesh } from 'three';
 import { Box, Cyl } from '../../core/primitives';
 import { materials } from '../../core/materials';
-import { mergeStaticParts } from '../../core/merge';
+import { useMergedParts } from '../../core/useMergedParts';
 import type { StaticPart } from '../../core/merge';
 import { MACHINE_LAYOUT_3D } from '../../../machineLayout';
 
@@ -166,7 +166,7 @@ export const ChainInfeed = memo(function ChainInfeed({
   const plateRefs = useRef<(Mesh | null)[]>([]);
   const phase = useRef(0);
   const lastProgress = useRef(0);
-  const staticGroups = useMemo(() => mergeStaticParts(STATIC_PARTS), []);
+  const staticGroups = useMergedParts('ChainInfeed', () => STATIC_PARTS);
 
   useFrame((_, delta) => {
     // One loop per transfer cycle, driven by cycle progress rather than wall

@@ -1,7 +1,7 @@
-import { memo, useMemo } from 'react';
+import { memo } from 'react';
 import { MACHINE_LAYOUT_3D, MM } from '../../../machineLayout';
 import { materials } from '../../core/materials';
-import { mergeStaticParts } from '../../core/merge';
+import { useMergedParts } from '../../core/useMergedParts';
 import type { StaticPart } from '../../core/merge';
 
 const { zones, deckHeights, blankPath } = MACHINE_LAYOUT_3D;
@@ -92,7 +92,7 @@ const PARTS: StaticPart[] = [
 ];
 
 export const TrayStation = memo(function TrayStation() {
-  const groups = useMemo(() => mergeStaticParts(PARTS), []);
+  const groups = useMergedParts('TrayStation', () => PARTS);
   const mats = materials();
 
   return (

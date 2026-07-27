@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { Box } from '../../core/primitives';
 import { geometries } from '../../core/geometries';
 import { materials } from '../../core/materials';
-import { mergeStaticParts } from '../../core/merge';
+import { useMergedParts } from '../../core/useMergedParts';
 import type { StaticPart } from '../../core/merge';
 import { MACHINE_LAYOUT_3D } from '../../../machineLayout';
 
@@ -51,9 +51,7 @@ export const GlueStation = memo(function GlueStation({
   const placed = useRef(false);
 
   // Applicator bodies never move; only the nozzle emissive changes.
-  const bodies = useMemo(
-    () =>
-      mergeStaticParts(
+  const bodies = useMergedParts('GlueStation', () =>
         GLUE_HEADS.map(([x, z]) => ({
           mat: 'steelDark' as const,
           size: [0.3, 0.34, 0.3] as [number, number, number],
@@ -61,8 +59,6 @@ export const GlueStation = memo(function GlueStation({
           castShadow: true,
           receiveShadow: true,
         })) satisfies StaticPart[]
-      ),
-    []
   );
 
   useFrame(() => {

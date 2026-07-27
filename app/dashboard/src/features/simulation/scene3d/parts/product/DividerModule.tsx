@@ -5,7 +5,7 @@ import { Box } from '../../core/primitives';
 import { getLaneZ3D } from '../../../machineLayout';
 import { damp, FOLLOW_LAMBDA } from '../../../animation/constants';
 import { materials } from '../../core/materials';
-import { mergeStaticParts } from '../../core/merge';
+import { useMergedParts } from '../../core/useMergedParts';
 
 /**
  * Divider that distributes the single-lane infeed across the transport lanes
@@ -35,9 +35,7 @@ export const DividerModule = memo(function DividerModule({
 
   // Everything except the lane-seeking carriage is fixed, so it is baked into
   // one buffer per material instead of ~9 separate meshes.
-  const statics = useMemo(
-    () =>
-      mergeStaticParts([
+  const statics = useMergedParts('DividerModule', () => [
         { mat: 'frameDark', size: [2.0, 0.05, 4.2], pos: [0, 0.1, 0], receiveShadow: true },
         ...[-0.4, 0.4].map((x) => ({
           mat: 'steelMid' as const,
@@ -61,9 +59,7 @@ export const DividerModule = memo(function DividerModule({
           size: [0.42, 0.06, 0.42], pos: [-0.45, 0.95, -2.3],
           rot: [0, 0, Math.PI / 2], receiveShadow: true,
         },
-      ]),
-    []
-  );
+      ]);
   const mats = materials();
 
   return (

@@ -149,6 +149,39 @@ async function main() {
   await page.screenshot({ path: file2 });
   console.log('wrote', file2);
 
+  // --- leak check -------------------------------------------------------
+  // Merged buffers are built per component instance. If a component does not
+  // dispose on unmount, navigating away and back leaks one buffer per merge
+  // group, per mount, forever.
+  console.log('\n--- leak check (mount/unmount x8) ---');
+  const readMerged = () =>
+    page.evaluate(() => window.__sceneStats?.mergedGeometries ?? -1);
+
+  await page.goto(`${FRONTEND}/3dsim?perf=1`);
+  await page.waitForTimeout(3500);
+  const baseline = await readMerged();
+
+  // Client-side navigation only. page.goto() is a full reload, which resets all
+  // module state and would make any leak invisible.
+  const spaNavigate = (to) =>
+    page.evaluate((path) => {
+      window.history.pushState({}, '', path);
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    }, to);
+
+  for (let i = 0; i < 8; i += 1) {
+    await spaNavigate('/?perf=1');
+    await page.waitForTimeout(400);
+    await spaNavigate('/3dsim?perf=1');
+    await page.waitForTimeout(1500);
+  }
+  const after = await readMerged();
+  const growth = after - baseline;
+  console.log(
+    `merged geometries: ${baseline} -> ${after}  (growth ${growth >= 0 ? '+' : ''}${growth})` +
+      (growth > 0 ? '   *** LEAK ***' : '   ok')
+  );
+
   if (errors.length) {
     console.log('\n--- page errors ---');
     for (const e of [...new Set(errors)].slice(0, 15)) console.log(' *', e);
