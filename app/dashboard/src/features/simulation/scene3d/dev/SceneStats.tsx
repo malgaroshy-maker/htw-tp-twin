@@ -1,0 +1,78 @@
+import { useFrame, useThree } from '@react-three/fiber';
+import { useRef } from 'react';
+import { liveMergedGeometryCount } from '../core/merge';
+
+declare global {
+  interface Window {
+    __sceneStats?: {
+      calls: number;
+      triangles: number;
+      programs: number;
+      geometries: number;
+      textures: number;
+      fps: number;
+      meshes: number;
+      shadowCasters: number;
+      mergedGeometries: number;
+      instancedCounts: number[];
+    };
+  }
+}
+
+/**
+ * Dev-only probe. Publishes renderer counters on `window.__sceneStats` once a
+ * second so the Playwright harness can assert draw calls / geometry count
+ * without a UI.
+ *
+ * Mounted only behind `?perf=1`, so it costs nothing in normal use.
+ *
+ * `fps` is only meaningful on real GPU hardware — under headless Chromium it
+ * reflects software rasterisation and should not be quoted as a perf figure.
+ */
+export function SceneStats() {
+  const { gl, scene } = useThree();
+  const frames = useRef(0);
+  const windowStart = useRef(0);
+
+  useFrame(() => {
+    const now = performance.now();
+    if (windowStart.current === 0) {
+      windowStart.current = now;
+      return;
+    }
+
+    frames.current += 1;
+    const elapsed = now - windowStart.current;
+    if (elapsed < 1000) return;
+
+    let meshes = 0;
+    let shadowCasters = 0;
+    const instancedCounts: number[] = [];
+    scene.traverse((o) => {
+      const m = o as { isMesh?: boolean; visible?: boolean; castShadow?: boolean };
+      if (!m.isMesh || !m.visible) return;
+      meshes += 1;
+      if (m.castShadow) shadowCasters += 1;
+      const inst = o as unknown as { isInstancedMesh?: boolean; count?: number };
+      if (inst.isInstancedMesh && (inst.count ?? 0) > 0) instancedCounts.push(inst.count ?? 0);
+    });
+
+    window.__sceneStats = {
+      meshes,
+      shadowCasters,
+      mergedGeometries: liveMergedGeometryCount(),
+      instancedCounts,
+      calls: gl.info.render.calls,
+      triangles: gl.info.render.triangles,
+      programs: gl.info.programs?.length ?? 0,
+      geometries: gl.info.memory.geometries,
+      textures: gl.info.memory.textures,
+      fps: Math.round((frames.current / elapsed) * 1000),
+    };
+
+    frames.current = 0;
+    windowStart.current = now;
+  });
+
+  return null;
+}

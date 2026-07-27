@@ -1,4 +1,4 @@
-import { cn } from './Badge';
+import { cn } from '../utils';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'danger' | 'ghost' | 'warning';

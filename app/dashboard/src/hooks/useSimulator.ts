@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, createContext, useContext } from 'react';
 import type { SimulatorState, RecipeInfo, ScenarioInfo } from './simTypes';
 
 export interface EventRecord {
@@ -13,12 +13,19 @@ export interface EventRecord {
   message: string;
   session_id: string;
   scenario_id: string;
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
 }
 
 const API_BASE = 'http://localhost:8000';
 
-export function useSimulator() {
+/**
+ * Owns the single polling loop and all simulator state.
+ *
+ * Call this exactly once, from `SimulatorProvider`. Every consumer reads the
+ * result through `useSimulator()` instead, so the app runs one `/state` poll
+ * rather than one per component.
+ */
+export function useSimulatorStore() {
   const [state, setState] = useState<SimulatorState | null>(null);
   const [events, setEvents] = useState<EventRecord[]>([]);
   const [recipes, setRecipes] = useState<RecipeInfo[]>([]);
@@ -91,6 +98,23 @@ export function useSimulator() {
       return { accepted: false, error: 'Network error' };
     }
   }, []);
+
+  const updateRecipe = useCallback(async (updates: Partial<RecipeInfo> & { recipe_id: string }) => {
+    try {
+      const response = await fetch(`${API_BASE}/recipe/update`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates),
+      });
+      const data = await response.json();
+      if (data.state) setState(data.state);
+      await fetchRecipes(); // refresh the local list
+      return data;
+    } catch (err) {
+      console.error('Update recipe error:', err);
+      return { status: 'error', error: 'Network error' };
+    }
+  }, [fetchRecipes]);
 
   const sendCommand = useCallback(async (action: string) => {
     try {
@@ -259,5 +283,22 @@ export function useSimulator() {
     askAi,
     tick,
     setInput,
+    updateRecipe,
   };
+}
+
+export type SimulatorStore = ReturnType<typeof useSimulatorStore>;
+
+export const SimulatorContext = createContext<SimulatorStore | null>(null);
+
+/**
+ * Read the shared simulator state. Requires a `SimulatorProvider` above it,
+ * which App.tsx mounts once around the whole router.
+ */
+export function useSimulator(): SimulatorStore {
+  const store = useContext(SimulatorContext);
+  if (!store) {
+    throw new Error('useSimulator must be used inside a <SimulatorProvider>');
+  }
+  return store;
 }

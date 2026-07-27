@@ -11,9 +11,10 @@ type SimulationMode = '2d' | '3d';
 
 interface SimulationViewProps {
   state: SimulatorState | null;
+  sendCommand?: (action: string) => Promise<unknown>;
 }
 
-export function SimulationView({ state }: SimulationViewProps) {
+export function SimulationView({ state, sendCommand }: SimulationViewProps) {
   const [is3DAllowed, setIs3DAllowed] = useState(true);
   const [mode, setMode] = useState<SimulationMode>('3d');
 
@@ -32,7 +33,7 @@ export function SimulationView({ state }: SimulationViewProps) {
   }, []);
 
   if (!state) {
-    return <SimulationView2D state={state} />;
+    return <div className="flex h-full items-center justify-center text-slate-600 text-xs font-mono uppercase tracking-widest">Awaiting machine state...</div>;
   }
 
   const effectiveMode: SimulationMode = is3DAllowed ? mode : '2d';
@@ -69,7 +70,7 @@ export function SimulationView({ state }: SimulationViewProps) {
             </div>
           }
         >
-          <SimulationView3D state={state} />
+          <SimulationView3D state={state} sendCommand={sendCommand} />
         </Suspense>
       ) : (
         <SimulationView2D state={state} />

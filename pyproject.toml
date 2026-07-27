@@ -11,8 +11,12 @@ requires-python = ">=3.11"
 dependencies = [
   "fastapi>=0.115",
   "uvicorn>=0.30",
-  "pydantic>=2.8"
+  "pydantic>=2.8",
+  "google-genai>=0.1.0"
 ]
 
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
 [tool.setuptools]
-packages = ["app", "app.shared", "app.simulator", "app.control", "app.api", "app.ai"]
+packages = ["app", "app.shared", "app.simulator", "app.control", "app.api", "app.ai", "app.reports"]

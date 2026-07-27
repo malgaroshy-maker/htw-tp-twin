@@ -1,5 +1,5 @@
 export interface SimulatorState {
-  cmd: Record<string, any>;
+  cmd: Record<string, unknown>;
   cfg: {
     active_recipe_id: string;
     active_recipe_name: string;
@@ -14,7 +14,7 @@ export interface SimulatorState {
     grid_cols: number;
     grid_rows: number;
   };
-  inputs: Record<string, any>;
+  inputs: Record<string, unknown>;
   sts: {
     machine_state: string;
     machine_mode: string;
@@ -129,13 +129,13 @@ export interface RecipeInfo {
 
 export interface ScenarioTrigger {
   type: string;
-  value: any;
+  value: unknown;
 }
 
 export interface ScenarioAction {
   type: string;
   name: string;
-  value: any;
+  value: unknown;
 }
 
 export interface ScenarioStep {

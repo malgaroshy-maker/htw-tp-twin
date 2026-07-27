@@ -82,3 +82,36 @@ def test_tick_dt():
     assert response.json()["sts"]["machine_state"] == MachineState.STARTING.value
     response = client.post("/tick", json={"dt": 0.6})
     assert response.json()["sts"]["machine_state"] == MachineState.RUNNING.value
+def test_command_manual_jog():
+    # 1. Enter Manual Mode
+    resp = client.post("/command", json={"action": "mode_manual"})
+    assert resp.status_code == 200, f"Mode switch failed: {resp.text}"
+    assert resp.json()["accepted"] is True, f"Manual mode rejected: {resp.json().get('error')}"
+    
+    state = client.get("/state").json()
+    assert state["sts"]["machine_mode"] == "MANUAL"
+    
+    # 2. Try Jog Infeed
+    response = client.post("/command", json={"action": "jog_infeed"})
+    assert response.status_code == 200
+    data = response.json()
+    assert data["accepted"] is True, f"Jog Infeed rejected: {data.get('error')}"
+    # Note: cmd bits are pulse-style and cleared after the update cycle in server.py
+    
+    # 3. Try Jog Blank Feed
+    response = client.post("/command", json={"action": "jog_blank_feed"})
+    assert response.status_code == 200
+    assert response.json()["accepted"] is True
+    
+    # 4. Try Jog Pack Advance
+    response = client.post("/command", json={"action": "jog_pack_advance"})
+    assert response.status_code == 200
+    assert response.json()["accepted"] is True
+
+def test_manual_mode_safety_gate():
+    # Ensure jogs are REJECTED in AUTO mode
+    client.post("/command", json={"action": "mode_auto"})
+    
+    response = client.post("/command", json={"action": "jog_infeed"})
+    assert response.status_code == 200
+    assert response.json()["accepted"] is False

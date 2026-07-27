@@ -7,6 +7,7 @@ from pydantic import BaseModel
 
 from app.shared.tag_store import TagStore
 from app.shared.enums import Severity
+from app.shared.persistence import EventStore
 from app.simulator.engine import SimulatorEngine
 from app.control.controller import PLCStyleController
 from app.ai.assistant import AIAssistant
@@ -31,12 +32,24 @@ TAGS.state.cfg["session_id"] = str(uuid.uuid4())
 SIM = SimulatorEngine(TAGS)
 CTRL = PLCStyleController(TAGS)
 AI = AIAssistant(TAGS, SIM.event_logger, GeminiClient())
+DB = EventStore()
 
 # Initial update to set HMI flags
 CTRL.update()
 
-# Log initial session start
+# Log initial session start and persist it
 SIM._log_event("SESSION_STARTED", "SYSTEM", Severity.INFO, f"Initial session started: {TAGS.state.cfg['session_id']}")
+DB.upsert_session(TAGS.state.cfg["session_id"])
+
+
+def _flush_events_to_db() -> None:
+    """Write any new in-memory events to SQLite."""
+    session_id = TAGS.state.cfg.get("session_id", "")
+    for event in SIM.event_logger.events:
+        DB.write_event(event)
+    # Update session counters
+    if session_id:
+        DB.upsert_session(session_id)
 
 
 class CommandRequest(BaseModel):
@@ -58,6 +71,20 @@ class TickRequest(BaseModel):
 class SetInputRequest(BaseModel):
     name: str
     value: Any
+
+
+class UpdateRecipeRequest(BaseModel):
+    recipe_id: str
+    recipe_name: Optional[str] = None
+    products_per_pack: Optional[int] = None
+    grid_cols: Optional[int] = None
+    grid_rows: Optional[int] = None
+    nominal_cycle_time_sec: Optional[float] = None
+    product_spawn_interval_sec: Optional[float] = None
+    reject_probability: Optional[float] = None
+    jam_probability: Optional[float] = None
+    display_color: Optional[str] = None
+    notes: Optional[str] = None
 
 
 class InjectFaultRequest(BaseModel):
@@ -122,13 +149,20 @@ def command(req: CommandRequest) -> dict:
         result = CTRL.refill_blanks()
     elif action == "clear_rejects":
         result = CTRL.request_clear_rejects()
+    elif action == "jog_infeed":
+        result = CTRL.jog_infeed()
+    elif action == "jog_blank_feed":
+        result = CTRL.jog_blank_feed()
+    elif action == "jog_pack_advance":
+        result = CTRL.jog_pack_advance()
     else:
         error = "unsupported action"
 
     # Run a 0-dt update to let the engine process the command pulse immediately
     SIM.update(0.0)
     CTRL.update()
-    
+    _flush_events_to_db()
+
     response: dict[str, Any] = {"accepted": result, "state": TAGS.snapshot()}
     if error:
         response["error"] = error
@@ -144,16 +178,65 @@ def recipe(req: RecipeRequest) -> dict:
     return {"accepted": accepted, "state": TAGS.snapshot()}
 
 
+@app.post("/recipe/update")
+def update_recipe(req: UpdateRecipeRequest) -> dict:
+    import json
+    from app.simulator.config_loader import load_recipes
+    
+    # Check if recipe exists
+    if req.recipe_id not in SIM.ctx.recipes:
+        raise HTTPException(status_code=404, detail="Recipe not found")
+        
+    recipe = SIM.ctx.recipes[req.recipe_id]
+    
+    # Update fields that are provided
+    update_data = req.dict(exclude_unset=True)
+    for key, value in update_data.items():
+        if hasattr(recipe, key) and key != "recipe_id":
+            setattr(recipe, key, value)
+            
+    # Load raw JSON directly and update it
+    import os
+    recipes_path = "configs/recipes.json"
+    try:
+        with open(recipes_path, 'r', encoding='utf-8') as f:
+            raw_recipes = json.load(f)
+            
+        for r_dict in raw_recipes:
+            if r_dict["recipe_id"] == req.recipe_id:
+                for key, value in update_data.items():
+                    if key != "recipe_id":
+                        r_dict[key] = value
+                break
+                
+        # Save back
+        with open(recipes_path, 'w', encoding='utf-8') as f:
+            json.dump(raw_recipes, f, indent=2)
+            
+    except Exception as e:
+        print(f"Failed to update recipes.json: {e}")
+        
+    # Re-evaluate logic based on new settings (re-select active recipe if it's the one modified to trigger resets if necessary)
+    if TAGS.state.cfg["active_recipe_id"] == req.recipe_id:
+        CTRL.update()
+        
+    return {"status": "ok", "recipe": _to_dict(recipe), "state": TAGS.snapshot()}
+
+
 @app.post("/session/reset")
 def reset_session() -> dict:
     """Reset the current session and clear event history."""
     old_session_id = TAGS.state.cfg.get("session_id", "")
     SIM._log_event("SESSION_ENDED", "SYSTEM", Severity.INFO, f"Session ended: {old_session_id}")
-    
+    _flush_events_to_db()
+    if old_session_id:
+        DB.close_session(old_session_id)
+
     new_session_id = str(uuid.uuid4())
     TAGS.state.cfg["session_id"] = new_session_id
     SIM.event_logger.clear()
     SIM._log_event("SESSION_STARTED", "SYSTEM", Severity.INFO, f"New session started: {new_session_id}")
+    DB.upsert_session(new_session_id)
     return {"session_id": new_session_id, "state": TAGS.snapshot()}
 
 
@@ -209,6 +292,24 @@ def get_scenarios() -> dict:
     from app.simulator.config_loader import load_scenarios
     scenarios = load_scenarios("configs/scenarios.json")
     return {"scenarios": [_to_dict(s) for s in scenarios]}
+
+
+@app.get("/sessions")
+def get_sessions(limit: int = Query(20, ge=1, le=100)) -> dict:
+    """Return recent sessions from the persistent store, newest first."""
+    return {"sessions": DB.get_sessions(limit=limit)}
+
+
+@app.get("/history/events")
+def get_history_events(
+    session_id: Optional[str] = Query(None),
+    severity: Optional[str] = Query(None),
+    limit: int = Query(100, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+) -> dict:
+    """Return paginated historical events from SQLite."""
+    events = DB.get_events(session_id=session_id, severity=severity, limit=limit, offset=offset)
+    return {"events": events, "count": len(events), "limit": limit, "offset": offset}
 
 
 @app.get("/reports/session")

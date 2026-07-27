@@ -1,4 +1,4 @@
-import { cn } from './Badge';
+import { cn } from '../utils';
 
 interface CardProps {
   children: React.ReactNode;

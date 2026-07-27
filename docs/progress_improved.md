@@ -1,3 +1,8 @@
+> **SUPERSEDED (2026-07-27).** This was a point-in-time audit dated 2026-04-02.
+> Several of its findings are now stale — the dashboard screens it calls stubs are
+> built, and persistence exists. See `docs/progress.md` for current status and
+> `docs/3d-rebuild/` for the active workstream. Kept for history.
+
 # Project Progress Report — Improved
 
 > Generated: 2026-04-02 (Re-audit)
