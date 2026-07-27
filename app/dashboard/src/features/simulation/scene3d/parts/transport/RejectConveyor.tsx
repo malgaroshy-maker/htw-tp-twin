@@ -2,7 +2,6 @@ import { memo, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { geometries } from '../../core/geometries';
-import { Html } from '@react-three/drei';
 import { Box } from '../../core/primitives';
 import { materials } from '../../core/materials';
 import { mergeStaticParts } from '../../core/merge';
@@ -132,20 +131,6 @@ export const RejectConveyor = memo(function RejectConveyor({
         </group>
       )}
 
-      <Html position={[REJECT.x, 2.32, REJECT.z]} rotation={[-Math.PI / 2, 0, 0]} transform center scale={0.02}>
-        <div
-          style={{
-            color: active ? '#FCA5A5' : '#94A3B8',
-            fontSize: '10px',
-            opacity: 0.7,
-            fontWeight: 900,
-            letterSpacing: '0.15em',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          REJECT CONVEYOR
-        </div>
-      </Html>
     </group>
   );
 });

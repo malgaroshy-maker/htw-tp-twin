@@ -8,7 +8,8 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "capture3d": "node scripts/capture3d.mjs"
+    "capture3d": "node scripts/capture3d.mjs",
+    "typecheck": "tsc -b --force"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.7",

@@ -10,13 +10,23 @@ import { MACHINE_LAYOUT_3D } from '../../../machineLayout';
 
 const { deckHeights } = MACHINE_LAYOUT_3D;
 
-/** [x, z] of each applicator head. */
+/** [x, z] of each horizontal applicator head (OI 5-38 item 7). */
 const GLUE_HEADS: [number, number][] = [
   [7.4, 1.55],
   [8.8, 1.55],
   [10.2, 1.55],
   [8.1, -1.55],
   [9.5, -1.55],
+];
+
+/**
+ * Vertical gluing heads (OT p14 item 2) — a separate set from the horizontal
+ * applicators, gluing the upright plates rather than the flaps. Released by
+ * their own tray sensor ("Tray sensor release crosswise gluing").
+ */
+const VERTICAL_GLUE_HEADS: [number, number][] = [
+  [11.4, 1.95],
+  [11.4, -1.95],
 ];
 
 /**
@@ -96,6 +106,14 @@ export const GlueStation = memo(function GlueStation({
         args={[geometries().cylinder, materials().amberOn, GLUE_HEADS.length]}
         castShadow
       />
+      {/* Vertical gluing heads, angled inward at the plate line */}
+      {VERTICAL_GLUE_HEADS.map(([x, z], i) => (
+        <group key={`v-${i}`} position={[x, deckHeights.glue - 0.3, z]} rotation={[z > 0 ? 0.5 : -0.5, 0, 0]}>
+          <Box mat="amberOn" size={[0.2, 0.42, 0.2]} />
+          <Box mat="steelDark" pos={[0, 0.34, 0]} size={[0.28, 0.3, 0.28]} receiveShadow />
+        </group>
+      ))}
+
       {bodies.map((g) => (
         <mesh key={g.key} geometry={g.geometry} material={materials()[g.mat]} castShadow receiveShadow />
       ))}

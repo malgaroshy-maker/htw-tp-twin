@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, OrthographicCamera } from '@react-three/drei';
 import * as THREE from 'three';
@@ -15,10 +15,14 @@ import { Box, Plane } from './scene3d/core/primitives';
 import { MachineFrame } from './scene3d/parts/static/MachineFrame';
 import { TrayStation } from './scene3d/parts/static/TrayStation';
 import { TransportBed } from './scene3d/parts/static/TransportBed';
+import { TransportGuides } from './scene3d/parts/static/TransportGuides';
+import { BlankDrivers } from './scene3d/parts/blank/BlankDrivers';
 import { GlueStation } from './scene3d/parts/transport/GlueStation';
 import { TransportChains } from './scene3d/parts/transport/TransportChains';
 import { EdgeFlapFolders } from './scene3d/parts/transport/EdgeFlapFolders';
 import { SensorPost } from './scene3d/parts/sensors/SensorPost';
+import { LabelProjector } from './scene3d/overlay/LabelLayer';
+import type { SceneLabel } from './scene3d/overlay/LabelLayer';
 import { RejectConveyor } from './scene3d/parts/transport/RejectConveyor';
 import { ChainInfeed } from './scene3d/parts/product/ChainInfeed';
 import { SidePushers } from './scene3d/parts/product/SidePushers';
@@ -31,7 +35,7 @@ import { BlankLiftPath } from './scene3d/parts/static/BlankLiftPath';
 import { DividerModule } from './scene3d/parts/product/DividerModule';
 import { ProductSlug } from './scene3d/parts/product/ProductSlug';
 import { FormedCarton } from './scene3d/parts/transport/FormedCarton';
-import { ManualZoneHighlight, MaintenanceJogButton, ZoneLabel, FlowArrow } from './scene3d/parts/overlay/Overlays';
+import { ManualZoneHighlight, MaintenanceJogButton, FlowArrow } from './scene3d/parts/overlay/Overlays';
 import { lerp } from './scene3d/core/mathUtils';
 import { damp, FOLLOW_LAMBDA } from './animation/constants';
 import './simulation.css';
@@ -130,8 +134,10 @@ function MachineScene({
   layerVisibility,
   controlsEnabled,
   sendCommand,
+  labelContainerRef,
 }: {
   model: MachineSceneModel | null;
+  labelContainerRef: React.RefObject<HTMLDivElement | null>;
   cameraPreset: CameraPresetKey;
   layerVisibility: ViewerLayerState;
   controlsEnabled: boolean;
@@ -144,10 +150,35 @@ function MachineScene({
     pusherRef.current.position.x = damp(pusherRef.current.position.x, model.pusherX, FOLLOW_LAMBDA, delta);
   });
 
+  // Label anchors as data. These used to be 12 drei <Html> components, each
+  // mounting its own React subtree inside the R3F reconciler and running its
+  // own per-frame DOM write. LabelProjector projects them all in one pass.
+  const sceneLabels: SceneLabel[] = useMemo(
+    () =>
+      !model
+        ? []
+        : [
+            { id: 'mag', position: [-14.2, 0.16, 6], text: 'BLANK MAGAZINE', active: model.phase === 'BLANK_FEED' },
+            { id: 'cross', position: [-9.1, 0.16, 6], text: 'CROSS TRANSFER', active: model.phase === 'BLANK_FEED' },
+            { id: 'withdraw', position: [-5, 0.16, 5.15], text: 'BLANK WITHDRAW', active: model.phase === 'BLANK_FEED' || model.phase === 'TRANSFER' },
+            { id: 'grouping', position: [-7.4, 0.16, -6.6], text: 'SEPARATOR + GROUPING', active: model.phase === 'GROUPING' || model.phase === 'CAPTURED' },
+            { id: 'chain', position: [0.9, 0.16, -6.4], text: 'CHAIN INFEED', active: model.phase === 'TRANSFER' },
+            { id: 'gap', position: [0.35, 0.16, 3.55], text: 'GAP SENSOR + 3D CHECK', active: model.gapSensorActive || model.completenessCameraActive },
+            { id: 'transport', position: [8.8, 0.16, -6.4], text: 'MAIN TRANSPORT', active: model.phase === 'PACKING' || model.phase === 'DISCHARGE' },
+            { id: 'glue', position: [11.1, 0.16, 3.3], text: 'GLUE + GUIDES', active: model.phase === 'PACKING' || model.phase === 'DISCHARGE' },
+            { id: 'outfeed', position: [15.2, 0.16, -3.5], text: 'OUTFEED', active: model.phase === 'DISCHARGE' },
+            { id: 'reject', position: [16.7, 0.16, 5.6], text: 'REJECT CONVEYOR', active: model.rejectCount > 0 || model.rejectActive },
+            { id: 'outlet', position: [15.6, 4.28, 1.35], text: 'OUTLET', active: !model.rejectActive && model.phase === 'DISCHARGE', kind: 'sensor' as const },
+            { id: 'plate', position: [14.9, 4.28, -1.35], text: 'PLATE', active: model.phase === 'DISCHARGE', kind: 'sensor' as const },
+    ],
+    [model]
+  );
+
   if (!model) return null;
 
   const phaseActive = (phase: string) => model.phase === phase;
   const { zones, blankPath } = MACHINE_LAYOUT_3D;
+
 
   return (
     <>
@@ -194,6 +225,7 @@ function MachineScene({
             vacuumOk={model.vacuumOk}
           />
           <BlankLiftPath />
+          <BlankDrivers running={model.machineState === 'RUNNING' || model.machineState === 'RUN_EMPTY'} />
           <FlowArrow position={[-11.4, 1.32, zones.blankMagazine.z]} length={3.6} active={phaseActive('BLANK_FEED')} color="#F59E0B" />
           <FlowArrow position={[-4.4, 1.18, blankPath.z]} length={11.8} active={phaseActive('BLANK_FEED') || phaseActive('TRANSFER')} color="#F59E0B" />
           <FlatBlank visible={model.blankVisible} x={model.blankX} z={model.blankZ} />
@@ -234,6 +266,7 @@ function MachineScene({
         <group>
           <FlowArrow position={[8.5, 0.09, -5.9]} length={13.4} active={phaseActive('PACKING') || phaseActive('DISCHARGE')} color="#38BDF8" />
           <TransportBed />
+          <TransportGuides />
           <GlueStation glueActive={model.glueActive} guideActive={model.guideActive} />
           <TransportChains
             running={model.machineState === 'RUNNING' || model.machineState === 'RUN_EMPTY'}
@@ -258,18 +291,9 @@ function MachineScene({
 
       {layerVisibility.sensors && (
         <group>
-          <SensorPost position={[15.6, 3.08, 1.35]} active={!model.rejectActive && model.phase === 'DISCHARGE'} label="OUTLET" />
-          <SensorPost position={[14.9, 3.08, -1.35]} active={model.phase === 'DISCHARGE'} label="PLATE" />
-          <ZoneLabel position={[-14.2, 0.16, 6]} label="BLANK MAGAZINE" active={phaseActive('BLANK_FEED')} />
-          <ZoneLabel position={[-9.1, 0.16, 6]} label="CROSS TRANSFER" active={phaseActive('BLANK_FEED')} />
-          <ZoneLabel position={[-5, 0.16, 5.15]} label="BLANK WITHDRAW" active={phaseActive('BLANK_FEED') || phaseActive('TRANSFER')} />
-          <ZoneLabel position={[-7.4, 0.16, -6.6]} label="SEPARATOR + GROUPING" active={phaseActive('GROUPING') || phaseActive('CAPTURED')} />
-          <ZoneLabel position={[0.9, 0.16, -6.4]} label="CHAIN INFEED" active={phaseActive('TRANSFER')} />
-          <ZoneLabel position={[0.35, 0.16, 3.55]} label="GAP SENSOR + 3D CHECK" active={model.gapSensorActive || model.completenessCameraActive} />
-          <ZoneLabel position={[8.8, 0.16, -6.4]} label="MAIN TRANSPORT" active={phaseActive('PACKING') || phaseActive('DISCHARGE')} />
-          <ZoneLabel position={[11.1, 0.16, 3.3]} label="GLUE + GUIDES" active={phaseActive('PACKING') || phaseActive('DISCHARGE')} />
-          <ZoneLabel position={[15.2, 0.16, -3.5]} label="OUTFEED" active={phaseActive('DISCHARGE')} />
-          <ZoneLabel position={[16.7, 0.16, 5.6]} label="REJECT CONVEYOR" active={model.rejectCount > 0 || model.rejectActive} />
+          <SensorPost position={[15.6, 3.08, 1.35]} active={!model.rejectActive && model.phase === 'DISCHARGE'} />
+          <SensorPost position={[14.9, 3.08, -1.35]} active={model.phase === 'DISCHARGE'} />
+          <LabelProjector labels={sceneLabels} containerRef={labelContainerRef} />
         </group>
       )}
     </>
@@ -288,6 +312,8 @@ export function SimulationView3D({
   // be called separately in each, which doubled the work and produced two
   // distinct object identities per snapshot.
   const model = useMachineSceneModel(state);
+  // Labels are written into this plain DOM layer, which sits above the Canvas.
+  const labelContainerRef = useRef<HTMLDivElement>(null);
 
   // The material/geometry registries are module singletons shared by both mount
   // points (this view and ThreeDSimPage), so disposal is refcounted — unmounting
@@ -351,6 +377,8 @@ export function SimulationView3D({
         </>
       )}
 
+      <div ref={labelContainerRef} className="pointer-events-none absolute inset-0 z-[5] overflow-hidden" />
+
       <Canvas
         shadows={{ type: THREE.PCFSoftShadowMap }}
         dpr={[1, 1.5]}
@@ -363,6 +391,7 @@ export function SimulationView3D({
       >
         <MachineScene
           model={model}
+          labelContainerRef={labelContainerRef}
           cameraPreset={cameraPreset}
           layerVisibility={layerVisibility}
           controlsEnabled={controlsEnabled}

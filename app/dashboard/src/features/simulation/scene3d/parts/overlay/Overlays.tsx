@@ -97,30 +97,6 @@ export const MaintenanceJogButton = memo(function MaintenanceJogButton({
   );
 });
 
-export const ZoneLabel = memo(function ZoneLabel({
-  position,
-  label,
-  active,
-}: {
-  position: [number, number, number];
-  label: string;
-  active: boolean;
-}) {
-  return (
-    <Html position={position} center scale={0.02} className="pointer-events-none">
-      <div
-        className={`whitespace-nowrap text-center text-xs font-black uppercase tracking-widest transition-opacity duration-500 ${
-          active
-            ? 'text-emerald-400 opacity-90 drop-shadow-[0_0_12px_rgba(52,211,153,0.4)]'
-            : 'text-slate-500 opacity-40'
-        }`}
-      >
-        {label}
-      </div>
-    </Html>
-  );
-});
-
 /**
  * Flow arrows are ground decals, cached by length so the six of them share
  * geometry. Shaft and head are merged into one buffer: two draw calls per arrow
