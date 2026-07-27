@@ -1,10 +1,12 @@
-import { memo, useRef } from 'react';
+import { memo, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
+import * as THREE from 'three';
+import { geometries } from '../../core/geometries';
 
 import type { Group, Mesh } from 'three';
 import { Box, Plane } from '../../core/primitives';
 import { materials } from '../../core/materials';
-import { MACHINE_LAYOUT_3D, TRAY_SIZE_3D, PRODUCT_SIZE_3D } from '../../../machineLayout';
+import { MACHINE_LAYOUT_3D, TRAY_SIZE_3D, PRODUCT_SIZE_3D, REAL_MM, MM } from '../../../machineLayout';
 import { lerp } from '../../core/mathUtils';
 import { damp, FOLLOW_LAMBDA } from '../../../animation/constants';
 
@@ -17,6 +19,9 @@ import { damp, FOLLOW_LAMBDA } from '../../../animation/constants';
  * swapping the scale for real rotating folder blades is the fidelity upgrade.
  */
 const [TRAY_X, TRAY_Z] = TRAY_SIZE_3D;
+const SLOT_PITCH = (REAL_MM.tray.length / 10) * MM;
+const LANE_PITCH = REAL_MM.lanePitch * MM;
+const MAX_PRODUCTS = 8 * 16;
 /** Wall height follows the product, as a wrap-around tray does. */
 const WALL_H = PRODUCT_SIZE_3D[1] * 0.62;
 
@@ -26,13 +31,20 @@ export const FormedCarton = memo(function FormedCarton({
   z,
   formProgress,
   rejectActive,
+  rowCount,
+  colCount,
 }: {
   visible: boolean;
   x: number;
   z: number;
   formProgress: number;
   rejectActive: boolean;
+  rowCount: number;
+  colCount: number;
 }) {
+  const productsRef = useRef<THREE.InstancedMesh>(null);
+  const dummy = useMemo(() => new THREE.Object3D(), []);
+  const lastGrid = useRef('');
   const groupRef = useRef<Group>(null);
   const leftWallRef = useRef<Mesh>(null);
   const rightWallRef = useRef<Mesh>(null);
@@ -83,6 +95,35 @@ export const FormedCarton = memo(function FormedCarton({
     sealLeft.position.set(0, topLift + 0.025, TRAY_Z / 2 - 0.04);
     sealRight.position.set(0, topLift + 0.025, -TRAY_Z / 2 + 0.04);
 
+    // The formation stays inside the tray. Previously the slug faded to zero and
+    // the carton was an empty box, so the products vanished at the exact moment
+    // the tray wrapped around them — the opposite of what the machine does.
+    const products = productsRef.current;
+    if (products) {
+      const grid = `${rowCount}:${colCount}`;
+      if (grid !== lastGrid.current) {
+        lastGrid.current = grid;
+        let i = 0;
+        const xSpan = (colCount - 1) * SLOT_PITCH;
+        const zSpan = (rowCount - 1) * LANE_PITCH;
+        for (let row = 0; row < rowCount; row += 1) {
+          for (let col = 0; col < colCount && i < MAX_PRODUCTS; col += 1) {
+            dummy.position.set(
+              -xSpan / 2 + col * SLOT_PITCH,
+              PRODUCT_SIZE_3D[1] / 2 + 0.03,
+              -zSpan / 2 + row * LANE_PITCH
+            );
+            dummy.scale.set(...PRODUCT_SIZE_3D);
+            dummy.updateMatrix();
+            products.setMatrixAt(i, dummy.matrix);
+            i += 1;
+          }
+        }
+        products.count = i;
+        products.instanceMatrix.needsUpdate = true;
+      }
+    }
+
     // Both seals share one registry material — they are always in the same state.
     materials().amberOn.emissiveIntensity = Math.max(0, (formProgress - 0.78) / 0.22) * 0.6;
   });
@@ -92,6 +133,13 @@ export const FormedCarton = memo(function FormedCarton({
   return (
     <group ref={groupRef} position={[x, MACHINE_LAYOUT_3D.deckHeights.products - 0.22, z]}>
       <Box mat="cartonBase" size={[TRAY_X, 0.045, TRAY_Z]} castShadow receiveShadow />
+
+      {/* The product formation the tray is being wrapped around */}
+      <instancedMesh
+        ref={productsRef}
+        args={[geometries().box, materials().product, MAX_PRODUCTS]}
+        castShadow
+      />
       <Plane mat="cartonBase" pos={[0, 0.05, 0]} size={[TRAY_X * 0.94, TRAY_Z * 0.94, 1]} receiveShadow />
 
       <Box ref={leftWallRef} mat="cartonBase" pos={[0, 0.02, -TRAY_Z / 2]} size={[TRAY_X, WALL_H, 0.035]} castShadow receiveShadow />

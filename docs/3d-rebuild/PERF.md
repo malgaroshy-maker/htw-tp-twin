@@ -336,6 +336,54 @@ the visual differentiation the lighting work exists to show. A realistic floor
 for this scene, keeping its current fidelity, is **80–90**. The ≤60 target is
 withdrawn as unfounded rather than quietly carried forward.
 
+## Animation realism
+
+### The formation used to vanish into the carton
+
+During `PACKING` the product slug faded to zero opacity and `FormedCarton` was an
+**empty box** — so the products disappeared at the exact moment the tray wrapped
+around them, which is the opposite of what the machine does. The carton now
+carries its own instanced formation, laid out on the real slot and lane pitch, so
+the products stay visible inside the tray through packing and discharge.
+
+Verified by probing the live scene during `PACKING`: two instanced meshes report
+count 24 for a 3 x 8 recipe — the slug in transit and the formation inside the
+carton.
+
+### Harness additions
+
+- `phase-packing.png`: the harness now ticks until `cycle_phase === 'PACKING'`
+  before capturing the transport close-up. Any other phase says nothing about the
+  carton.
+- `SceneStats` publishes `instancedCounts`, which is what made the check above
+  possible without poking at R3F internals.
+
+## Geometry leak, found and fixed
+
+Phase 4 introduced `mergeStaticParts` in eleven components, each calling it from
+a bare `useMemo`. Merged buffers are per component instance — unlike the geometry
+and material registries they are not module singletons — so nothing ever freed
+them. `disposeMergedGroups` existed and was never called.
+
+The harness leak check (navigate between routes eight times, compare a live
+counter) measured **84 → 588: 63 geometries leaked per mount**.
+
+Two things made the obvious fix wrong, and the test caught both:
+
+1. `page.goto()` is a full reload, which resets module state and hides the leak
+   entirely. The check navigates client-side via `pushState` + `popstate`.
+2. Disposing in a `useEffect` cleanup is wrong under **StrictMode**, which
+   double-invokes effects — it freed the buffers immediately after the first
+   mount, while the scene was still drawing with them. That version fixed exactly
+   half the leak and broke the other half.
+
+Replaced with a refcounted module cache keyed by component name, the same shape
+as the material registry. This also fixed a second issue: `SimulationView`
+(Overview) and `ThreeDSimPage` **both** render the machine, so each was building
+its own full set of merged buffers. Sharing them halved the baseline, 84 → 42.
+
+Leak check now reports **42 → 42** across eight mount/unmount cycles.
+
 ## Phase 3 — motion smoothing (partial)
 
 `animation/constants.ts` now owns `SNAPSHOT_BLEND_MS` and `VISUAL_SPEED_SCALE`, and the

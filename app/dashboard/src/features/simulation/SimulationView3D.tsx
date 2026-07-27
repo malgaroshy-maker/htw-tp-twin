@@ -279,6 +279,8 @@ function MachineScene({
             z={model.packZ}
             formProgress={model.packFormProgress}
             rejectActive={model.rejectActive}
+            rowCount={model.rowCount}
+            colCount={model.colCount}
           />
           <RejectConveyor
             storedPositions={model.rejectConveyorPositions}

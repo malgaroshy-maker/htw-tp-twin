@@ -125,6 +125,32 @@ async function main() {
   const running = path.join(OUT, '3dsim-running.png');
   await page.screenshot({ path: running });
 
+  // Drive to PACKING and capture the transport close-up: it is the only phase
+  // that shows the tray wrapping around the formation, so a capture in any
+  // other phase says nothing about the carton.
+  const tick = () =>
+    page.evaluate(async () => {
+      const r = await fetch('http://localhost:8000/tick', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dt: 0.2 }),
+      });
+      const s = await r.json();
+      return s?.sts?.cycle_phase ?? '';
+    });
+
+  for (let i = 0; i < 60; i += 1) {
+    const phase = await tick();
+    if (phase === 'PACKING') break;
+  }
+  const transportBtn = page.getByRole('button', { name: 'Main Transport', exact: true });
+  if ((await transportBtn.count()) > 0) {
+    await transportBtn.first().click();
+    await page.waitForTimeout(1400);
+    await page.screenshot({ path: path.join(OUT, 'phase-packing.png') });
+    console.log('wrote', path.join(OUT, 'phase-packing.png'));
+  }
+
   // Per-station close-ups. Phase 6 checks each station against its OEM figure,
   // and the overview camera is far too wide to judge geometry at that level.
   for (const preset of ['Grouping', 'Transfer', 'Tray Infeed', 'Main Transport', 'Discharge']) {
