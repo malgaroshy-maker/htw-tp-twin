@@ -47,6 +47,11 @@ const DISCHARGE_Y = deckHeights.products;
 const TRACK_Y = DISCHARGE_Y - 0.24;
 const TRACK_W = TRAY_X * 0.8;
 
+/** Outfeed belt: starts at the discharge and carries on downstream. */
+const OUTFEED_START = zones.discharge.x + zones.discharge.width / 2 - 0.6;
+const OUTFEED_LEN = 4.2;
+const OUTFEED_MID = OUTFEED_START + OUTFEED_LEN / 2;
+
 /** Resting position of the nth accumulated reject, stacking away from the machine. */
 function storedZ(index: number) {
   return TRACK_Z0 + 0.8 + index * 1.35;
@@ -101,20 +106,37 @@ const TRACK_PARTS: StaticPart[] = [
   // "To further processing": the good pack carries straight on (item 2)
   {
     mat: 'beltBlueDeep',
-    size: [4.2, 0.05, TRAY_Z + 0.5],
-    pos: [BRANCH_X + 3.0, DISCHARGE_Y - 0.02, 0],
+    size: [OUTFEED_LEN, 0.05, TRAY_Z + 0.5],
+    pos: [OUTFEED_MID, DISCHARGE_Y - 0.02, 0],
     receiveShadow: true,
   },
   ...[-1, 1].map((sign) => ({
     mat: 'steelDark' as const,
-    size: [4.2, 0.16, 0.06] as [number, number, number],
-    pos: [BRANCH_X + 3.0, DISCHARGE_Y + 0.06, sign * (TRAY_Z / 2 + 0.28)] as [
+    size: [OUTFEED_LEN, 0.16, 0.06] as [number, number, number],
+    pos: [OUTFEED_MID, DISCHARGE_Y + 0.06, sign * (TRAY_Z / 2 + 0.28)] as [
       number,
       number,
       number,
     ],
     receiveShadow: true,
   })),
+  /*
+   * Legs. The outfeed belt runs past the end of the machine base (x 18.25) — which
+   * is correct, it hands to downstream equipment — but it was drawn with no
+   * support at all, so it hung in mid-air three units off the end of the frame.
+   */
+  ...[0.35, 0.85].flatMap((f) =>
+    [-1, 1].map((sign) => ({
+      mat: 'frame' as const,
+      size: [0.12, DISCHARGE_Y - 0.1, 0.12] as [number, number, number],
+      pos: [
+        OUTFEED_START + OUTFEED_LEN * f,
+        (DISCHARGE_Y - 0.1) / 2,
+        sign * (TRAY_Z / 2 + 0.2),
+      ] as [number, number, number],
+      receiveShadow: true,
+    }))
+  ),
 ];
 
 export const RejectConveyor = memo(function RejectConveyor({

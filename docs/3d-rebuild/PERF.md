@@ -656,3 +656,68 @@ The magazine also stood *taller* than the cross transfer it feeds, which is
 backwards — blanks travel upward from here. The chain is now monotonic: roller top
 0.70 -> cross-transfer top 1.14 -> shaft mouth 1.72, with a ramp between the first
 two and the cabinet reduced to the base the rollers actually sit on.
+
+## Visual verification run
+
+Harness output after the alignment work:
+
+```
+3dsim  calls 142  programs 16  geometries 77  textures 8  tris 10384  meshes 143  casters 45
+/state 2.0 req/s (1 poll loop)
+leak check: merged geometries 51 -> 51 over 8 mount/unmount cycles
+```
+
+`fps` from this harness is meaningless — headless Chromium falls back to
+SwiftShader. It is reported only so a change in it is visible; it is not a
+budget.
+
+The captures found five things that no amount of reading the coordinates would
+have caught.
+
+### The machine had no base shell
+
+The harness reports page errors, and the first run printed:
+
+```
+THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index 1.
+```
+
+`mergeGeometries` requires every input to agree about having an index.
+`BoxGeometry` and `CylinderGeometry` are indexed; `RoundedBoxGeometry` converts
+itself to non-indexed in its constructor. Any bucket holding both returned null,
+and `mergeStaticParts` silently skipped the whole group.
+
+`MachineFrame`'s `frameDark` cast bucket holds the rounded base shell **and** the
+six square cross members — so the machine had been rendering with no base shell
+and no cross members at all, which is why it read as equipment scattered on a flat
+plate. `buildPartGeometry` now normalises to non-indexed. Draw calls went *down*
+(158 -> 142) despite drawing more, because the recovered bucket merges into one.
+
+### Every camera preset was an overview
+
+Orthographic zoom is pixels per world unit. At the ~1130 px canvas the station
+presets' 26-31 showed 36-43 world units — the whole 35-unit machine. All six
+"station" views were the same shot from six headings. Station zoom is now 78
+(~14 units). `OrbitControls maxZoom` had to go up with it: it clamps
+`camera.zoom` on its next update, so a maxZoom of 44 was silently undoing every
+preset the frame after it was applied.
+
+### Three placards on top of each other
+
+BLANK MAGAZINE / CROSS TRANSFER / BLANK WITHDRAW are 1.2 apart in X — about 30 px
+at the overview camera against ~110 px of text. Fanned out in Z.
+
+### Two things standing on nothing
+
+- The "to further processing" outfeed belt runs past the end of the machine base,
+  which is correct, but had no legs — it hung in mid-air three units off the frame.
+- The five glue applicators hung over the transport with no mounting at all.
+  Each now brackets across and down onto the glue rail beside it.
+
+### Known and unresolved
+
+The grouping deck is mostly empty: the zone is 5.8 deep (normalised from the OEM
+plan view) while three lanes at the cb 12 format pitch occupy 1.1 of it. Both
+numbers are sourced, and the manual itself notes the plan view shows more lanes
+than the cb 12 format has — so this is the format-variant tension recorded in
+PLAN.md surfacing visually, not a coordinate error. Left alone deliberately.

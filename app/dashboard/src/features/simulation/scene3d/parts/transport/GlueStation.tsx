@@ -42,6 +42,10 @@ const VERTICAL_GLUE_HEADS: [number, number][] = [
   [12.2, -VERTICAL_Z],
 ];
 
+/** Applicator body height, and the rail its bracket lands on. */
+const HEAD_Y = deckHeights.glue + 0.42;
+const RAIL_Z_ABS = TRAY_Z / 2 + 0.2;
+
 /** Rails run the length of the transport zone, not an arbitrary 10.8. */
 const RAIL_LENGTH = zones.mainTransport.width - 3.0;
 const RAIL_X = zones.mainTransport.x + 1.1;
@@ -68,15 +72,37 @@ export const GlueStation = memo(function GlueStation({
   const placed = useRef(false);
 
   // Applicator bodies never move; only the nozzle emissive changes.
-  const bodies = useMergedParts('GlueStation', () =>
-        GLUE_HEADS.map(([x, z]) => ({
-          mat: 'steelDark' as const,
-          size: [0.3, 0.34, 0.3] as [number, number, number],
-          pos: [x, deckHeights.glue + 0.42, z] as [number, number, number],
-          castShadow: true,
-          receiveShadow: true,
-        })) satisfies StaticPart[]
-  );
+  const bodies = useMergedParts('GlueStation', () => [
+    ...GLUE_HEADS.map(([x, z]) => ({
+      mat: 'steelDark' as const,
+      size: [0.3, 0.34, 0.3] as [number, number, number],
+      pos: [x, HEAD_Y, z] as [number, number, number],
+      castShadow: true,
+      receiveShadow: true,
+    })),
+    /*
+     * Mounting brackets. The five applicators were drawn hanging in mid-air over
+     * the transport with nothing holding them — visible as soon as the camera
+     * presets were tight enough to frame the station. Each now drops onto the
+     * glue rail that runs beside it.
+     */
+    ...GLUE_HEADS.map(([x, z]) => ({
+      mat: 'steelMid' as const,
+      size: [0.08, 0.08, Math.abs(z) - RAIL_Z_ABS + 0.02] as [number, number, number],
+      pos: [x, HEAD_Y, (z + Math.sign(z) * RAIL_Z_ABS) / 2] as [number, number, number],
+      receiveShadow: true,
+    })),
+    ...GLUE_HEADS.map(([x, z]) => ({
+      mat: 'steelMid' as const,
+      size: [0.08, HEAD_Y - deckHeights.guides, 0.08] as [number, number, number],
+      pos: [x, (HEAD_Y + deckHeights.guides) / 2, Math.sign(z) * RAIL_Z_ABS] as [
+        number,
+        number,
+        number,
+      ],
+      receiveShadow: true,
+    })),
+  ] satisfies StaticPart[]);
 
   useFrame(() => {
     const nozzles = nozzleRef.current;

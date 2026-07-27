@@ -77,13 +77,27 @@ const DEFAULT_LAYERS: ViewerLayerState = {
   sensors: true,
 };
 
+/*
+ * Camera presets.
+ *
+ * Zoom on an orthographic camera is pixels per world unit, so at the ~1130 px
+ * canvas the old station zooms of 26-31 showed 36-43 world units — the entire
+ * 35-unit machine. Every "station" preset was an overview with a different
+ * heading, which is why they were indistinguishable in the captures.
+ *
+ * Station zooms now show roughly 14 units, which frames one station and its
+ * neighbours' handover points. Targets sit at the deck the station works on
+ * rather than at a rounded-off height.
+ */
+const STATION_ZOOM = 78;
+
 const CAMERA_PRESETS: Record<CameraPresetKey, { position: [number, number, number]; target: [number, number, number]; zoom: number }> = {
-  overview: { position: [20, 18, 22], target: [0.5, 1.9, 1.2], zoom: 19 },
-  grouping: { position: [-2.0, 13.5, 18.5], target: [-4.6, 2.8, 0], zoom: 26 },
-  transfer: { position: [7.6, 12.4, 18.8], target: [3.3, 3.15, 0.2], zoom: 27 },
-  tray: { position: [-4.0, 11.4, 19], target: [-8.4, 1.3, 3.2], zoom: 27 },
-  transport: { position: [17.3, 13.2, 17], target: [9.6, 3, 0], zoom: 27 },
-  discharge: { position: [21, 11.8, 14.5], target: [16.4, 2.8, 0], zoom: 31 },
+  overview: { position: [20, 18, 22], target: [1.0, 2.0, 0.6], zoom: 26 },
+  grouping: { position: [-2.0, 13.5, 18.5], target: [zones.grouping.x, deckHeights.products, 0], zoom: STATION_ZOOM },
+  transfer: { position: [7.6, 12.4, 18.8], target: [zones.transfer.x, deckHeights.products, 0], zoom: STATION_ZOOM },
+  tray: { position: [-4.0, 11.4, 19], target: [zones.crossTransfer.x, deckHeights.blank, blankPath.z + 1.2], zoom: STATION_ZOOM },
+  transport: { position: [17.3, 13.2, 17], target: [zones.mainTransport.x, deckHeights.products, 0], zoom: STATION_ZOOM },
+  discharge: { position: [21, 11.8, 14.5], target: [zones.discharge.x, deckHeights.products, 1.6], zoom: STATION_ZOOM },
 };
 
 
@@ -123,8 +137,11 @@ function CameraRig({
         enabled={controlsEnabled}
         enableDamping
         dampingFactor={0.08}
-        minZoom={18}
-        maxZoom={44}
+        // Must span the preset range: OrbitControls clamps `camera.zoom` on its
+        // next update, so a maxZoom below STATION_ZOOM silently undid every
+        // station preset the frame after it was applied.
+        minZoom={16}
+        maxZoom={130}
         minPolarAngle={Math.PI / 5}
         maxPolarAngle={Math.PI / 2.15}
         minAzimuthAngle={-Math.PI / 2.6}
@@ -174,9 +191,15 @@ function MachineScene({
              * `blankWithdraw`, SEPARATOR + GROUPING 1.4 upstream of `grouping`,
              * and OUTFEED at x 19, past the end of the machine base at 18.25.
              */
-            { id: 'mag', position: [zones.blankMagazine.x, 0.16, 7.0], text: 'BLANK MAGAZINE', active: model.phase === 'BLANK_FEED' },
-            { id: 'cross', position: [zones.crossTransfer.x, 0.16, 5.9], text: 'CROSS TRANSFER', active: model.phase === 'BLANK_FEED' },
-            { id: 'withdraw', position: [zones.blankWithdraw.x, 0.16, 4.4], text: 'BLANK WITHDRAW', active: model.phase === 'BLANK_FEED' || model.phase === 'TRANSFER' },
+            /*
+             * The three blank-side placards are only ~1.2 apart in X — about 30 px
+             * at the overview camera against ~110 px of text — so they piled on top
+             * of each other in every capture. Fanning them out in Z separates them
+             * without moving any of them off its own station.
+             */
+            { id: 'mag', position: [zones.blankMagazine.x, 0.16, 7.6], text: 'BLANK MAGAZINE', active: model.phase === 'BLANK_FEED' },
+            { id: 'cross', position: [zones.crossTransfer.x, 0.16, 6.4], text: 'CROSS TRANSFER', active: model.phase === 'BLANK_FEED' },
+            { id: 'withdraw', position: [zones.blankWithdraw.x, 0.16, 0.6], text: 'BLANK WITHDRAW', active: model.phase === 'BLANK_FEED' || model.phase === 'TRANSFER' },
             { id: 'grouping', position: [zones.grouping.x, 0.16, -6.6], text: 'SEPARATOR + GROUPING', active: model.phase === 'GROUPING' || model.phase === 'CAPTURED' },
             { id: 'chain', position: [zones.transfer.x, 0.16, -6.4], text: 'CHAIN INFEED', active: model.phase === 'TRANSFER' },
             { id: 'gap', position: [zones.transfer.x - 1.35, 0.16, 2.9], text: 'GAP SENSOR + 3D CHECK', active: model.gapSensorActive || model.completenessCameraActive },

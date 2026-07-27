@@ -51,6 +51,23 @@ function buildPartGeometry(part: StaticPart): THREE.BufferGeometry {
     geo = new THREE.BoxGeometry(w, h, d);
   }
 
+  /*
+   * `mergeGeometries` requires every input to agree about having an index.
+   * `BoxGeometry` and `CylinderGeometry` are indexed; `RoundedBoxGeometry` is
+   * not — it converts itself in its constructor. Any bucket holding both
+   * therefore failed to merge and returned null, and the caller silently skipped
+   * the whole group.
+   *
+   * That is not hypothetical: `MachineFrame`'s `frameDark` cast bucket holds the
+   * rounded base shell *and* the six square cross members, so the machine has
+   * been rendering with no base shell and no cross members at all. It only
+   * surfaced now because the capture harness reports page errors.
+   *
+   * Normalising to non-indexed makes the buckets always mergeable. These parts
+   * are a few hundred triangles each, so the duplicated vertices are free.
+   */
+  if (geo.index !== null) geo = geo.toNonIndexed();
+
   const matrix = new THREE.Matrix4();
   const quat = new THREE.Quaternion();
   if (part.rot) {
