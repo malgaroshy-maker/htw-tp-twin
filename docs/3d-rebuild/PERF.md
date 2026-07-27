@@ -350,6 +350,23 @@ Verified by probing the live scene during `PACKING`: two instanced meshes report
 count 24 for a 3 x 8 recipe — the slug in transit and the formation inside the
 carton.
 
+### Lanes now accumulate against the stopper
+
+Two things about the grouping lanes read as a counter rather than a machine:
+
+- Products were laid out **forwards from a fixed upstream origin**, so a filling
+  lane grew *towards* the stopper and left a gap in front of the blade. An
+  accumulating lane does the opposite: product queues hard against the closed
+  stopper and stacks upstream behind it.
+- New products **appeared at their slot**. They now slide in from the lane entry
+  with the same damped follow the rest of the scene uses, so the lane visibly
+  fills.
+
+`groupingGeometry.ts` holds `STOPPER_X`, `TERMINAL_X`, the slot pitch and the
+blade travel, shared by `GroupedLaneFill` and `StopperTerminal`. Previously each
+computed the stopper position independently, so a product could come to rest
+where the blade was not.
+
 ### Harness additions
 
 - `phase-packing.png`: the harness now ticks until `cycle_phase === 'PACKING'`

@@ -2,10 +2,10 @@ import { memo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import type { Mesh } from 'three';
 import { Box } from '../../core/primitives';
-import { MACHINE_LAYOUT_3D, TRAY_SIZE_3D } from '../../../machineLayout';
+import { TRAY_SIZE_3D } from '../../../machineLayout';
+import { STOPPER_X, TERMINAL_X, BLADE_UP, BLADE_DOWN } from './groupingGeometry';
 import { damp, FOLLOW_LAMBDA } from '../../../animation/constants';
 
-const { zones, deckHeights } = MACHINE_LAYOUT_3D;
 const [, TRAY_Z] = TRAY_SIZE_3D;
 
 /**
@@ -20,13 +20,6 @@ const [, TRAY_Z] = TRAY_SIZE_3D;
  * phase, so the 3D view shows the real interlock state.
  */
 
-/** Stopper sits at the downstream end of the lanes. */
-const STOPPER_X = zones.grouping.x + zones.grouping.width / 2 - 0.35;
-/** Terminal sits one formation length upstream. */
-const TERMINAL_X = STOPPER_X - TRAY_SIZE_3D[0] - 0.2;
-
-const BLADE_UP = deckHeights.products + 0.62;
-const BLADE_DOWN = deckHeights.products + 0.02;
 
 export const StopperTerminal = memo(function StopperTerminal({
   stopperClosed,
