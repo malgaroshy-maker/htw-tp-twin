@@ -15,12 +15,21 @@ export interface SceneLabel {
  * a plain DOM layer that lives *outside* the Canvas.
  *
  * drei's `<Html>` mounts a React subtree per label and runs its own `useFrame`
- * to reposition it — 13 of those meant 13 per-frame layout-triggering DOM
- * writes and 13 extra React trees inside the R3F reconciler. This projects all
- * of them in one pass, at ~8 Hz rather than per frame: the camera is static
- * between user interactions, so label positions do not need frame-rate updates.
+ * to reposition it — 13 of those meant 13 extra React trees inside the R3F
+ * reconciler. This projects all of them in one pass.
+ *
+ * The projection runs **every frame**. An earlier version throttled it to 8 Hz
+ * on the theory that a static camera does not need frame-rate updates, but
+ * OrbitControls damping means the camera keeps moving after input stops, so the
+ * labels visibly stepped and flickered against the scene. Projecting twelve
+ * points is a handful of multiplications; the cost the original `<Html>` carried
+ * was React reconciliation, not the maths.
+ *
+ * Writes are still skipped when nothing changed, so a genuinely static camera
+ * touches the DOM zero times per frame.
  */
-const UPDATE_INTERVAL = 1 / 8;
+/** Sub-pixel moves are not worth a style write. */
+const MOVE_EPSILON = 0.25;
 
 export function LabelProjector({
   labels,
@@ -30,9 +39,21 @@ export function LabelProjector({
   containerRef: React.RefObject<HTMLDivElement | null>;
 }) {
   const { camera, size } = useThree();
-  const accum = useRef(0);
   const vec = useRef(new THREE.Vector3());
   const nodes = useRef<Map<string, HTMLElement>>(new Map());
+  /** Last written screen position per label, to skip no-op DOM writes. */
+  const lastXY = useRef<Map<string, [number, number]>>(new Map());
+
+  /*
+   * Node identity is keyed on the label IDs, not on the array.
+   *
+   * `labels` is rebuilt from the simulator snapshot, so its identity changes on
+   * every poll. Depending on it tore down and recreated all twelve nodes twice a
+   * second, leaving them blank until the next frame projected them — which is
+   * what made the labels flicker, and at low projection rates made them vanish.
+   * The IDs are fixed, so this effect now runs once.
+   */
+  const labelKey = labels.map((l) => l.id).join('|');
 
   // Build one DOM node per label, reused across updates.
   useEffect(() => {
@@ -65,13 +86,11 @@ export function LabelProjector({
       for (const el of map.values()) el.remove();
       map.clear();
     };
-  }, [labels, containerRef]);
+    // labelKey covers the only thing that should rebuild nodes: the set of IDs.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [labelKey, containerRef]);
 
-  useFrame((_, delta) => {
-    accum.current += delta;
-    if (accum.current < UPDATE_INTERVAL) return;
-    accum.current = 0;
-
+  useFrame(() => {
     for (const label of labels) {
       const el = nodes.current.get(label.id);
       if (!el) continue;
@@ -85,8 +104,13 @@ export function LabelProjector({
 
       const x = (vec.current.x * 0.5 + 0.5) * size.width;
       const y = (-vec.current.y * 0.5 + 0.5) * size.height;
-      el.style.display = '';
-      el.style.transform = `translate(-50%, -50%) translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
+
+      if (el.style.display === 'none') el.style.display = '';
+      const prev = lastXY.current.get(label.id);
+      if (!prev || Math.abs(prev[0] - x) > MOVE_EPSILON || Math.abs(prev[1] - y) > MOVE_EPSILON) {
+        lastXY.current.set(label.id, [x, y]);
+        el.style.transform = `translate(-50%, -50%) translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
+      }
 
       const cls =
         label.kind === 'sensor'

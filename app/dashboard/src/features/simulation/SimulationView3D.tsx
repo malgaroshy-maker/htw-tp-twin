@@ -167,8 +167,8 @@ function MachineScene({
             { id: 'gap', position: [2.6, 0.16, 2.9], text: 'GAP SENSOR + 3D CHECK', active: model.gapSensorActive || model.completenessCameraActive },
             { id: 'transport', position: [9.6, 0.16, -6.4], text: 'MAIN TRANSPORT', active: model.phase === 'PACKING' || model.phase === 'DISCHARGE' },
             { id: 'glue', position: [11.9, 0.16, 2.9], text: 'GLUE + GUIDES', active: model.phase === 'PACKING' || model.phase === 'DISCHARGE' },
-            { id: 'outfeed', position: [16.4, 0.16, -3.5], text: 'OUTFEED', active: model.phase === 'DISCHARGE' },
-            { id: 'reject', position: [17.9, 0.16, 5.6], text: 'REJECT CONVEYOR', active: model.rejectCount > 0 || model.rejectActive },
+            { id: 'outfeed', position: [19.0, 0.16, -2.6], text: 'OUTFEED', active: model.phase === 'DISCHARGE' },
+            { id: 'reject', position: [16.4, 0.16, 6.9], text: 'REJECT CONVEYOR', active: model.rejectCount > 0 || model.rejectActive },
             { id: 'outlet', position: [16.7, 4.28, 1.35], text: 'OUTLET', active: !model.rejectActive && model.phase === 'DISCHARGE', kind: 'sensor' as const },
             { id: 'plate', position: [16.0, 4.28, -1.35], text: 'PLATE', active: model.phase === 'DISCHARGE', kind: 'sensor' as const },
     ],
@@ -293,7 +293,7 @@ function MachineScene({
             storedPositions={model.rejectConveyorPositions}
             active={model.faultCode === 'REJECT_BIN_FULL' || model.warningCode === 'REJECT_BIN_NEAR_FULL'}
             liveRejectActive={model.rejectActive && model.phase === 'DISCHARGE'}
-            liveRejectX={lerp(MACHINE_LAYOUT_3D.productPath.rejectBranchX - 0.5, MACHINE_LAYOUT_3D.productPath.rejectBranchX + 1.4, model.visualProgress)}
+            liveRejectX={model.visualProgress}
           />
         </group>
       )}
