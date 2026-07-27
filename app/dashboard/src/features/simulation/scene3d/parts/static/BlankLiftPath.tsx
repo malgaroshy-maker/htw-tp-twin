@@ -1,5 +1,7 @@
 import { memo, useMemo } from 'react';
-import { Box } from '../../core/primitives';
+import { materials } from '../../core/materials';
+import { mergeStaticParts } from '../../core/merge';
+import type { StaticPart } from '../../core/merge';
 import { MACHINE_LAYOUT_3D } from '../../../machineLayout';
 import { lerp, smoothstep } from '../../core/mathUtils';
 
@@ -42,64 +44,59 @@ function buildRamp(yStart: number, yEnd: number): Segment[] {
  * height. Entirely static — it never changes after mount, so it is a prime
  * candidate for geometry merging in Phase 4.
  */
+/**
+ * Deck and guide rails carrying the blank from the low transport up to transfer
+ * height. Entirely static, so the 38 segments are merged into one buffer per
+ * material rather than 38 draw calls.
+ */
 export const BlankLiftPath = memo(function BlankLiftPath() {
-  const { blankPath, zones, deckHeights } = MACHINE_LAYOUT_3D;
-  const rampStart = blankPath.rampStartX;
+  const groups = useMemo(() => {
+    const { blankPath, zones, deckHeights } = MACHINE_LAYOUT_3D;
+    const rampStart = blankPath.rampStartX;
+    const lowerLength = zones.blankTransport.width + (zones.blankTransport.x - rampStart);
+    const lowerX = (zones.blankTransport.x + rampStart) / 2 - 1.0;
 
-  const lowerLength = zones.blankTransport.width + (zones.blankTransport.x - rampStart);
-  const lowerX = (zones.blankTransport.x + rampStart) / 2 - 1.0;
+    const deckSegments = buildRamp(deckHeights.lowTransport, blankPath.transferY - 0.12);
+    const railSegments = buildRamp(deckHeights.lowTransport + 0.1, blankPath.transferY + 0.02);
 
-  const deckSegments = useMemo(
-    () => buildRamp(deckHeights.lowTransport, blankPath.transferY - 0.12),
-    [deckHeights.lowTransport, blankPath.transferY]
-  );
-  const railSegments = useMemo(
-    () => buildRamp(deckHeights.lowTransport + 0.1, blankPath.transferY + 0.02),
-    [deckHeights.lowTransport, blankPath.transferY]
-  );
+    const parts: StaticPart[] = [
+      {
+        mat: 'nearBlack',
+        size: [lowerLength, 0.08, zones.blankTransport.depth],
+        pos: [lowerX, deckHeights.lowTransport, zones.blankTransport.z],
+        receiveShadow: true,
+      },
+      ...deckSegments.map((s) => ({
+        mat: 'gunmetal' as const,
+        size: [s.length + 0.02, 0.08, 1.2] as [number, number, number],
+        pos: [s.x, s.y, blankPath.z] as [number, number, number],
+        rot: [0, 0, s.angle] as [number, number, number],
+        receiveShadow: true,
+      })),
+      ...RAIL_Z_OFFSETS.flatMap((zOffset) => [
+        {
+          mat: 'steelDark' as const,
+          size: [lowerLength, 0.06, 0.08] as [number, number, number],
+          pos: [lowerX, deckHeights.lowTransport + 0.1, zones.blankTransport.z + zOffset] as [number, number, number],
+          receiveShadow: true,
+        },
+        ...railSegments.map((s) => ({
+          mat: 'steelMid' as const,
+          size: [s.length + 0.02, 0.05, 0.06] as [number, number, number],
+          pos: [s.x, s.y, blankPath.z + zOffset] as [number, number, number],
+          rot: [0, 0, s.angle] as [number, number, number],
+          receiveShadow: true,
+        })),
+      ]),
+    ];
+    return mergeStaticParts(parts);
+  }, []);
 
+  const mats = materials();
   return (
     <group>
-      {/* Lower horizontal deck */}
-      <Box
-        mat="nearBlack"
-        pos={[lowerX, deckHeights.lowTransport, zones.blankTransport.z]}
-        size={[lowerLength, 0.08, zones.blankTransport.depth]}
-        receiveShadow
-      />
-
-      {/* Ramp deck */}
-      {deckSegments.map((s, index) => (
-        <Box
-          key={index}
-          mat="gunmetal"
-          pos={[s.x, s.y, blankPath.z]}
-          rot={[0, 0, s.angle]}
-          size={[s.length + 0.02, 0.08, 1.2]}
-          receiveShadow
-        />
-      ))}
-
-      {/* Guide rails, both sides */}
-      {RAIL_Z_OFFSETS.map((zOffset) => (
-        <group key={zOffset}>
-          <Box
-            mat="steelDark"
-            pos={[lowerX, deckHeights.lowTransport + 0.1, zones.blankTransport.z + zOffset]}
-            size={[lowerLength, 0.06, 0.08]}
-            receiveShadow
-          />
-          {railSegments.map((s, index) => (
-            <Box
-              key={`${zOffset}-${index}`}
-              mat="steelMid"
-              pos={[s.x, s.y, blankPath.z + zOffset]}
-              rot={[0, 0, s.angle]}
-              size={[s.length + 0.02, 0.05, 0.06]}
-              receiveShadow
-            />
-          ))}
-        </group>
+      {groups.map((g) => (
+        <mesh key={g.key} geometry={g.geometry} material={mats[g.mat]} receiveShadow={g.receiveShadow} />
       ))}
     </group>
   );

@@ -175,6 +175,46 @@ draw calls and 8 programs. This is a deliberate trade: the scene was unreadable 
 and is legible now (compare `captures/`). Phase 4 merging is expected to take draw calls
 well below the pre-lighting figure, and that is where the ≤60 target is won.
 
+## Phase 4 — static geometry merging (done)
+
+`scene3d/core/merge.ts` bakes immovable parts into one buffer per
+(material, castShadow, receiveShadow) combination. Merged: the machine frame
+(~60 meshes), the tray station, the transport bed, the blank lift path
+(38 segments) and the lug track (24 bars — rigid relative to each other, so the
+merged block is simply translated as a whole).
+
+This also finished the Phase 2 remainder: the static block was the last holder of
+inline materials. `SimulationView3D.tsx` now contains **zero** inline
+`meshStandardMaterial` / `boxGeometry` declarations, and the legacy `PALETTE` and
+`SHARED_MATERIALS` consts are deleted.
+
+### Full trajectory, measured on `/3dsim?perf=1`
+
+| Metric | Start | After P2 | After P5 (lighting) | After P4 (merging) |
+|---|---|---|---|---|
+| draw calls | 235 | 235 | 273 | **160** |
+| live geometries | 235 | 87 | 102 | **48** |
+| shader programs | 8 | 8 | 16 | 16 |
+| `SimulationView3D.tsx` | 1427 lines | 583 | 561 | **358** |
+
+**The ≤60 draw-call target was not met.** 160 is a 32% reduction on the starting
+figure while also absorbing the ~38-call cost of image-based lighting, so the
+merging itself removed well over 100 calls. What remains is dominated by:
+
+- the **shadow pass**, which redraws every `castShadow` mesh a second time
+- components not yet merged because they are state-driven rather than static:
+  `ChainInfeed` (~30 meshes), `RejectConveyor` (~20), `GroupedLaneFill`
+  (up to rows x cols), `FormedCarton`, `DividerModule`, `SuctionArm`
+
+Getting to ≤60 needs instancing for the repeated state-driven meshes and a cut in
+shadow-casting meshes — both real work, neither done here. The target stands;
+this phase did not reach it.
+
+Triangles fell from 12.6k to ~6k. That is a genuine LOD reduction, not lost
+geometry: drei's `<RoundedBox>` defaults to `smoothness = 4`, and the merged
+version uses 2 on seven large flat slabs where corner tessellation is invisible
+at every camera preset. Verified against the captures.
+
 ## Phase 3 — motion smoothing (partial)
 
 `animation/constants.ts` now owns `SNAPSHOT_BLEND_MS` and `VISUAL_SPEED_SCALE`, and the

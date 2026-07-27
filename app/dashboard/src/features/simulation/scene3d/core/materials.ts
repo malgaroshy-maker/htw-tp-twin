@@ -138,6 +138,15 @@ function build() {
       transparent: true,
     }),
 
+    // --- Frame decks ------------------------------------------------------
+    // The static frame block previously declared these inline with roughness
+    // values varying by 0.02-0.04 between otherwise identical surfaces —
+    // differences well below perceptual threshold. Consolidated to four.
+    deckPlate: std(PALETTE.frame, 0.18, 0.57),
+    deckMatte: std(PALETTE.deck, 0.08, 0.9),
+    deckDark: std(PALETTE.frameDark, 0.08, 0.88),
+    deckGlassDark: std(PALETTE.frameDark, 0.08, 0.9, { transparent: true, opacity: 0.4 }),
+
     // --- Misc -------------------------------------------------------------
     floor: std(PALETTE.deck, 0.02, 0.96),
     deckGlass: std(PALETTE.deck, 0.04, 0.96, { transparent: true, opacity: 0.34 }),

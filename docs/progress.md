@@ -58,9 +58,9 @@ Four problems, all confirmed with the user:
 |---|---|---|
 | 0 | Instrumentation harness | **Done** — `npm run capture3d` |
 | 1 | Collapse 9 poll loops into one context; shadow/render cheap wins | **Done** |
-| 2 | Asset registries, component decomposition, dead-code removal | **Done** |
+| 2 | Asset registries, component decomposition, dead-code removal | **Done** (completed by Phase 4) |
 | 3 | Motion smoothing | **Partial** — damped follow in place; full `SceneMotion` refactor outstanding |
-| 4 | Static geometry merging | Not started — this is where the draw-call target is won |
+| 4 | Static geometry merging | **Done** — draw calls 273 -> 160; ≤60 target still not met |
 | 5 | Lighting and materials | **Done** |
 | 6 | Geometry corrections + missing stations (6a–6h) | Not started |
 | 7 | Overlay cleanup (`<Html>` 15 → ≤4) | Not started |
@@ -70,14 +70,15 @@ Four problems, all confirmed with the user:
 | Metric | Before | Now |
 |---|---|---|
 | `/state` polls on Overview | 4.0 req/s (2 loops) | 2.0 req/s (1 loop) |
-| `SimulationView3D.tsx` | 1427 lines | 583 lines |
-| Live geometries | 235 | 102 |
-| Draw calls | 235 | 273 |
+| `SimulationView3D.tsx` | 1427 lines | 358 lines |
+| Live geometries | 235 | 48 |
+| Draw calls | 235 | 160 |
 | Dead SVG components | 13 | 0 |
 
-Draw calls went **up**, not down: image-based lighting costs ~38 calls and 8 shader
-programs. That is a deliberate trade for legibility, and Phase 4 merging is where the
-number comes back down. See `docs/3d-rebuild/PERF.md` for the full accounting.
+Draw calls fell 32% while also absorbing the ~38-call cost of image-based lighting, so
+merging itself removed well over 100. The plan's ≤60 target is **not** met: the shadow
+pass redraws every shadow-casting mesh, and several state-driven components are still
+one mesh per element. See `docs/3d-rebuild/PERF.md`.
 
 ### Bugs fixed during the rebuild
 

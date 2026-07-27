@@ -1,8 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { OrbitControls, OrthographicCamera, RoundedBox } from '@react-three/drei';
+import { OrbitControls, OrthographicCamera } from '@react-three/drei';
 import * as THREE from 'three';
-import type { Group } from 'three';
+import type { Mesh } from 'three';
 import type { SimulatorState } from '../../hooks/simTypes';
 import { useMachineSceneModel } from './hooks/useMachineSceneModel';
 import type { MachineSceneModel } from './hooks/useMachineSceneModel';
@@ -11,7 +11,11 @@ import { SceneStats } from './scene3d/dev/SceneStats';
 import { PERF_ENABLED } from './scene3d/dev/perfFlag';
 import { acquireSceneAssets, releaseSceneAssets } from './scene3d/core/materials';
 import { MachineLighting } from './scene3d/core/Lighting';
-import { MachineSupport } from './scene3d/parts/static/MachineSupport';
+import { Box, Plane } from './scene3d/core/primitives';
+import { MachineFrame } from './scene3d/parts/static/MachineFrame';
+import { TrayStation } from './scene3d/parts/static/TrayStation';
+import { TransportBed } from './scene3d/parts/static/TransportBed';
+import { GlueStation } from './scene3d/parts/transport/GlueStation';
 import { SensorPost } from './scene3d/parts/sensors/SensorPost';
 import { RejectConveyor } from './scene3d/parts/transport/RejectConveyor';
 import { LugTrack } from './scene3d/parts/transport/LugTrack';
@@ -66,35 +70,6 @@ const CAMERA_PRESETS: Record<CameraPresetKey, { position: [number, number, numbe
   discharge: { position: [20, 11.8, 14.5], target: [15.1, 2.8, 0], zoom: 31 },
 };
 
-const PALETTE = {
-  frame: '#334155',
-  frameDark: '#1E293B',
-  deck: '#0F172A',
-  cover: '#A8B4C3',
-  coverDark: '#7B8795',
-  rail: '#94A3B8',
-  actuator: '#C2410C',
-  actuatorBright: '#F59E0B',
-  cartonBase: '#8B5A2B',
-  cartonFold: '#A16207',
-  cartonEdge: '#6B3E14',
-  product: '#10B981',
-} as const;
-
-// --- SHARED ASSETS FOR PERFORMANCE ---
-const SHARED_MATERIALS = {
-  frame: new THREE.MeshStandardMaterial({ color: PALETTE.frame, metalness: 0.22, roughness: 0.5 }),
-  frameDark: new THREE.MeshStandardMaterial({ color: PALETTE.frameDark, metalness: 0.18, roughness: 0.58 }),
-  cover: new THREE.MeshStandardMaterial({ color: PALETTE.cover, metalness: 0.34, roughness: 0.34 }),
-  coverDark: new THREE.MeshStandardMaterial({ color: PALETTE.coverDark, metalness: 0.28, roughness: 0.34 }),
-  rail: new THREE.MeshStandardMaterial({ color: PALETTE.rail, roughness: 0.46, metalness: 0.28 }),
-  cartonBase: new THREE.MeshStandardMaterial({ color: PALETTE.cartonBase, roughness: 0.8, metalness: 0.06 }),
-  cartonFold: new THREE.MeshStandardMaterial({ color: PALETTE.cartonFold, roughness: 0.78, metalness: 0.03 }),
-  cartonEdge: new THREE.MeshStandardMaterial({ color: PALETTE.cartonEdge, roughness: 0.9, metalness: 0.02 }),
-  product: new THREE.MeshStandardMaterial({ color: PALETTE.product, metalness: 0.28, roughness: 0.28 }),
-  floor: new THREE.MeshStandardMaterial({ color: '#0F172A', roughness: 0.96, metalness: 0.02 }),
-};
-// -------------------------------------
 
 
 function CameraRig({
@@ -159,7 +134,7 @@ function MachineScene({
   controlsEnabled: boolean;
   sendCommand?: (action: string) => Promise<unknown>;
 }) {
-  const pusherRef = useRef<Group>(null);
+  const pusherRef = useRef<Mesh>(null);
 
   useFrame((_, delta) => {
     if (!model || !pusherRef.current) return;
@@ -169,7 +144,7 @@ function MachineScene({
   if (!model) return null;
 
   const phaseActive = (phase: string) => model.phase === phase;
-  const { frame, zones, supports, deckHeights, blankPath } = MACHINE_LAYOUT_3D;
+  const { zones, blankPath } = MACHINE_LAYOUT_3D;
 
   return (
     <>
@@ -193,143 +168,19 @@ function MachineScene({
         </>
       )}
 
-      <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow position={[0, -0.05, 0]} material={SHARED_MATERIALS.floor}>
-        <planeGeometry args={[40, 20]} />
-      </mesh>
+      <Plane mat="floor" rot={[-Math.PI / 2, 0, 0]} pos={[0, -0.05, 0]} size={[40, 20, 1]} receiveShadow />
 
       {layerVisibility.frame && (
         <group>
-          <RoundedBox args={[frame.base.width, frame.base.height, frame.base.depth]} radius={0.25} position={[frame.base.x, frame.base.y, frame.base.z]} castShadow receiveShadow>
-            <meshStandardMaterial color={PALETTE.frameDark} roughness={0.84} metalness={0.18} />
-          </RoundedBox>
-          {supports.map((position, index) => (
-            <MachineSupport key={index} position={position as [number, number, number]} height={2.3} />
-          ))}
-          {[-4.6, 0, 4.6].map((z) => (
-            <mesh key={`spine-${z}`} position={[1.2, 0.88, z]} castShadow receiveShadow material={SHARED_MATERIALS.frame}>
-              <boxGeometry args={[31.8, 0.14, 0.18]} />
-            </mesh>
-          ))}
-          {[-16.6, -10.6, -4.6, 1.2, 7.4, 13.6].map((x) => (
-            <mesh key={`cross-member-${x}`} position={[x, 0.92, 0]} castShadow receiveShadow material={SHARED_MATERIALS.frameDark}>
-              <boxGeometry args={[0.22, 0.12, 9.4]} />
-            </mesh>
-          ))}
-          <mesh position={[frame.lowDeck.x, frame.lowDeck.y, frame.lowDeck.z]} castShadow receiveShadow>
-            <boxGeometry args={[frame.lowDeck.width, frame.lowDeck.height, frame.lowDeck.depth]} />
-            <meshStandardMaterial color={PALETTE.frame} metalness={0.18} roughness={0.56} />
-          </mesh>
-          <mesh position={[frame.highGroupingDeck.x, frame.highGroupingDeck.y, frame.highGroupingDeck.z]} castShadow receiveShadow>
-            <boxGeometry args={[frame.highGroupingDeck.width, frame.highGroupingDeck.height, frame.highGroupingDeck.depth]} />
-            <meshStandardMaterial color={PALETTE.frame} metalness={0.18} roughness={0.58} />
-          </mesh>
-          <mesh position={[frame.highTransferDeck.x, frame.highTransferDeck.y, frame.highTransferDeck.z]} castShadow receiveShadow>
-            <boxGeometry args={[frame.highTransferDeck.width, frame.highTransferDeck.height, frame.highTransferDeck.depth]} />
-            <meshStandardMaterial color="#3B4959" metalness={0.18} roughness={0.58} />
-          </mesh>
-          <mesh position={[frame.highTransportDeck.x, frame.highTransportDeck.y, frame.highTransportDeck.z]} castShadow receiveShadow>
-            <boxGeometry args={[frame.highTransportDeck.width, frame.highTransportDeck.height, frame.highTransportDeck.depth]} />
-            <meshStandardMaterial color={PALETTE.frame} metalness={0.18} roughness={0.58} />
-          </mesh>
-          {[-3.48, 3.48].map((z) => (
-            <mesh key={`machine-side-skirt-${z}`} position={[1.0, 1.86, z]} castShadow receiveShadow>
-              <boxGeometry args={[29.2, 1.96, 0.16]} />
-              <meshStandardMaterial color={PALETTE.coverDark} metalness={0.2} roughness={0.44} transparent opacity={0.15} />
-            </mesh>
-          ))}
-          <mesh position={[zones.grouping.x, 3.34, 3.0]} castShadow receiveShadow material={SHARED_MATERIALS.coverDark}>
-            <boxGeometry args={[zones.grouping.width - 0.6, 0.72, 0.14]} />
-          </mesh>
-          <mesh position={[zones.grouping.x, 3.34, -3.0]} castShadow receiveShadow material={SHARED_MATERIALS.coverDark}>
-            <boxGeometry args={[zones.grouping.width - 0.6, 0.72, 0.14]} />
-          </mesh>
-          <mesh position={[zones.mainTransport.x + 1.2, 3.44, 2.2]} castShadow receiveShadow material={SHARED_MATERIALS.coverDark}>
-            <boxGeometry args={[zones.mainTransport.width - 2.2, 0.82, 0.14]} />
-          </mesh>
-          <mesh position={[zones.mainTransport.x + 1.2, 3.44, -2.2]} castShadow receiveShadow material={SHARED_MATERIALS.coverDark}>
-            <boxGeometry args={[zones.mainTransport.width - 2.2, 0.82, 0.14]} />
-          </mesh>
-          <RoundedBox args={[zones.grouping.width + 2.2, 0.24, zones.grouping.depth + 0.8]} radius={0.15} position={[-8.8, 2.44, 0]} receiveShadow>
-            <meshStandardMaterial color={PALETTE.deck} roughness={0.9} metalness={0.08} />
-          </RoundedBox>
-          <RoundedBox args={[6.8, 0.24, 4.9]} radius={0.12} position={[0.85, 2.48, 0]} receiveShadow>
-            <meshStandardMaterial color={PALETTE.deck} roughness={0.9} metalness={0.08} />
-          </RoundedBox>
-          <RoundedBox args={[12.6, 0.24, 4.6]} radius={0.12} position={[10.7, 2.5, 0]} receiveShadow>
-            <meshStandardMaterial color={PALETTE.deck} roughness={0.88} metalness={0.08} />
-          </RoundedBox>
-          <RoundedBox args={[zones.blankMagazine.width + 0.4, 0.22, zones.blankMagazine.depth + 0.3]} radius={0.15} position={[zones.blankMagazine.x, 0.62, zones.blankMagazine.z]} receiveShadow>
-            <meshStandardMaterial color={PALETTE.deck} roughness={0.92} metalness={0.08} />
-          </RoundedBox>
-          <RoundedBox args={[zones.blankTransport.width, 0.18, zones.blankTransport.depth]} radius={0.12} position={[zones.blankTransport.x, 1.44, zones.blankTransport.z]} receiveShadow>
-            <meshStandardMaterial color={PALETTE.frameDark} roughness={0.9} metalness={0.08} transparent opacity={0.4} />
-          </RoundedBox>
-          <RoundedBox args={[zones.mainTransport.width + 0.8, 0.2, zones.mainTransport.depth + 0.7]} radius={0.12} position={[zones.mainTransport.x, 2.48, 0]} receiveShadow>
-            <meshStandardMaterial color={PALETTE.frameDark} roughness={0.88} metalness={0.08} />
-          </RoundedBox>
-          <mesh position={[-10.8, 2.88, 0]} castShadow receiveShadow>
-            <boxGeometry args={[1.3, 0.22, 5.8]} />
-            <meshStandardMaterial color={PALETTE.frame} metalness={0.18} roughness={0.58} />
-          </mesh>
-          <mesh position={[1.45, 2.88, 0]} castShadow receiveShadow>
-            <boxGeometry args={[0.28, 0.34, 4.4]} />
-            <meshStandardMaterial color={PALETTE.frame} metalness={0.18} roughness={0.58} />
-          </mesh>
-          {[-1.5, 1.5].map((z) => (
-            <mesh key={`transfer-side-bed-${z}`} position={[1.25, 2.94, z]} castShadow receiveShadow>
-              <boxGeometry args={[4.8, 0.12, 0.3]} />
-              <meshStandardMaterial color={PALETTE.frameDark} metalness={0.16} roughness={0.64} />
-            </mesh>
-          ))}
-          {[-1.88, 1.88].map((z) => (
-            <mesh key={`transport-side-plate-${z}`} position={[10.8, 3.08, z]} castShadow receiveShadow>
-              <boxGeometry args={[12.1, 0.18, 0.18]} />
-              <meshStandardMaterial color={PALETTE.frame} metalness={0.24} roughness={0.42} />
-            </mesh>
-          ))}
+          <MachineFrame />
           <DividerModule currentLane={model.currentLane} rowCount={model.rowCount} />
         </group>
       )}
 
       {layerVisibility.tray && (
         <group>
-          <mesh position={[zones.blankMagazine.x - 0.2, 1.58, zones.blankMagazine.z]} castShadow receiveShadow>
-            <boxGeometry args={[3.8, 1.8, 2.0]} />
-            <meshStandardMaterial color="#334155" metalness={0.24} roughness={0.72} />
-          </mesh>
-          {Array.from({ length: 8 }).map((_, index) => (
-            <mesh key={`roll-${index}`} position={[zones.blankMagazine.x - 2.1 + index * 0.58, deckHeights.low, zones.blankMagazine.z]} rotation={[0, 0, Math.PI / 2]} castShadow receiveShadow>
-              <cylinderGeometry args={[0.12, 0.12, 2.6, 18]} />
-              <meshStandardMaterial color="#CBD5E1" metalness={0.4} roughness={0.3} />
-            </mesh>
-          ))}
-          {Array.from({ length: 6 }).map((_, index) => (
-            <mesh key={index} position={[zones.blankMagazine.x - 0.1 + index * 0.06, 2.38 + index * 0.08, zones.blankMagazine.z]} castShadow receiveShadow>
-              <boxGeometry args={[2.8, 0.09, 1.5]} />
-              <meshStandardMaterial color="#92400E" roughness={0.82} metalness={0.03} />
-            </mesh>
-          ))}
-          <mesh position={[zones.crossTransfer.x, 1.08, zones.crossTransfer.z]} castShadow receiveShadow>
-            <boxGeometry args={[zones.crossTransfer.width, 0.12, zones.crossTransfer.depth]} />
-            <meshStandardMaterial color="#15803D" roughness={0.72} metalness={0.12} />
-          </mesh>
-          {[-6.7, -5.8, -4.9].map((x) => (
-            <mesh key={`blank-holder-${x}`} position={[x, 2.38, 1.42]} castShadow receiveShadow>
-              <boxGeometry args={[0.1, 0.72, 0.18]} />
-              <meshStandardMaterial color="#CBD5E1" metalness={0.32} roughness={0.32} />
-            </mesh>
-          ))}
-          {[-6.7, -5.8, -4.9].map((x) => (
-            <mesh key={`blank-holder-r-${x}`} position={[x, 2.38, 3.0]} castShadow receiveShadow>
-              <boxGeometry args={[0.1, 0.72, 0.18]} />
-              <meshStandardMaterial color="#CBD5E1" metalness={0.32} roughness={0.32} />
-            </mesh>
-          ))}
+          <TrayStation />
           <SuctionArm active={model.phase === 'BLANK_FEED'} progress={model.phaseProgress} z={blankPath.z} />
-          <mesh position={[zones.blankWithdraw.x - 0.2, 1.58, blankPath.z]} receiveShadow>
-            <boxGeometry args={[3.6, 0.08, 0.2]} />
-            <meshStandardMaterial color="#64748B" metalness={0.22} roughness={0.6} />
-          </mesh>
           <BlankLiftPath />
           <FlowArrow position={[-11.4, 1.32, zones.blankMagazine.z]} length={3.6} active={phaseActive('BLANK_FEED')} color="#F59E0B" />
           <FlowArrow position={[-4.4, 1.18, blankPath.z]} length={11.8} active={phaseActive('BLANK_FEED') || phaseActive('TRANSFER')} color="#F59E0B" />
@@ -343,10 +194,7 @@ function MachineScene({
           {Array.from({ length: model.rowCount }).map((_, lane) => {
             const z = lerp(-2.55, 2.55, model.rowCount === 1 ? 0.5 : lane / (model.rowCount - 1));
             return (
-              <mesh key={lane} position={[zones.grouping.x, 2.55, z]} receiveShadow>
-                <boxGeometry args={[zones.grouping.width - 0.2, 0.1, 0.08]} />
-                <meshStandardMaterial color="#334155" roughness={0.75} metalness={0.2} />
-              </mesh>
+              <Box key={lane} mat="frame" pos={[zones.grouping.x, 2.55, z]} size={[zones.grouping.width - 0.2, 0.1, 0.08]} receiveShadow />
             );
           })}
           <GroupedLaneFill laneFillCounts={model.laneFillCounts} rowCount={model.rowCount} colCount={model.colCount} />
@@ -360,10 +208,7 @@ function MachineScene({
             productScale={model.productScale}
           />
           <SidePushers progress={model.sidePusherProgress} />
-          <mesh ref={pusherRef} position={[MACHINE_LAYOUT_3D.productPath.transferX - 2.4, 2.96, 0]} castShadow receiveShadow>
-            <boxGeometry args={[0.12, 0.96, 3.4]} />
-            <meshStandardMaterial color="#94A3B8" metalness={0.48} roughness={0.3} />
-          </mesh>
+          <Box ref={pusherRef} mat="steelMid" pos={[MACHINE_LAYOUT_3D.productPath.transferX - 2.4, 2.96, 0]} size={[0.12, 0.96, 3.4]} castShadow receiveShadow />
           <ChainInfeed
             active={model.chainInfeedActive}
             progress={model.chainInfeedOffset}
@@ -376,56 +221,8 @@ function MachineScene({
       {layerVisibility.transport && (
         <group>
           <FlowArrow position={[8.5, 0.09, -5.9]} length={13.4} active={phaseActive('PACKING') || phaseActive('DISCHARGE')} color="#38BDF8" />
-          <mesh position={[10.35, 3.0, 0]} receiveShadow>
-            <boxGeometry args={[12.3, 0.035, 2.86]} />
-            <meshStandardMaterial color="#1D4ED8" roughness={0.82} metalness={0.02} transparent opacity={0.78} />
-          </mesh>
-          {Array.from({ length: 8 }).map((_, index) => (
-            <mesh key={`transport-belt-slat-${index}`} position={[5.6 + index * 1.46, 3.03, 0]} receiveShadow>
-              <boxGeometry args={[0.82, 0.012, 2.7]} />
-              <meshStandardMaterial color="#2563EB" roughness={0.9} metalness={0.01} transparent opacity={0.32} />
-            </mesh>
-          ))}
-          <mesh position={[zones.mainTransport.x - 3.3, 2.78, 0]} castShadow receiveShadow>
-            <boxGeometry args={[0.08, 0.92, 6.6]} />
-            <meshStandardMaterial color="#CBD5E1" metalness={0.42} roughness={0.34} />
-          </mesh>
-          <mesh position={[zones.mainTransport.x - 2.9, 2.78, 0]} castShadow receiveShadow>
-            <boxGeometry args={[0.08, 0.92, 6.6]} />
-            <meshStandardMaterial color="#CBD5E1" metalness={0.42} roughness={0.34} />
-          </mesh>
-          <mesh position={[10.2, deckHeights.guides, 2.08]} castShadow receiveShadow>
-            <boxGeometry args={[10.8, 0.14, 0.14]} />
-            <meshStandardMaterial color="#86EFAC" metalness={0.16} roughness={0.42} emissive="#14532D" emissiveIntensity={model.glueActive ? 0.14 : 0.04} />
-          </mesh>
-          <mesh position={[10.2, deckHeights.guides, -2.08]} castShadow receiveShadow>
-            <boxGeometry args={[10.8, 0.14, 0.14]} />
-            <meshStandardMaterial color="#86EFAC" metalness={0.16} roughness={0.42} emissive="#14532D" emissiveIntensity={model.glueActive ? 0.14 : 0.04} />
-          </mesh>
-          <mesh position={[11.2, 3.06, 2.34]} rotation={[0, 0, -0.45]} castShadow receiveShadow>
-            <boxGeometry args={[0.18, 1.1, 0.18]} />
-            <meshStandardMaterial color="#22C55E" metalness={0.16} roughness={0.42} />
-          </mesh>
-          <mesh position={[11.2, 3.06, -2.34]} rotation={[0, 0, 0.45]} castShadow receiveShadow>
-            <boxGeometry args={[0.18, 1.1, 0.18]} />
-            <meshStandardMaterial color="#22C55E" metalness={0.16} roughness={0.42} />
-          </mesh>
-          <mesh position={[10.2, 3.32, 2.1]} castShadow receiveShadow>
-            <boxGeometry args={[10.8, 0.14, 0.14]} />
-            <meshStandardMaterial color="#CBD5E1" metalness={0.25} roughness={0.4} emissive="#CBD5E1" emissiveIntensity={model.guideActive ? 0.08 : 0.02} />
-          </mesh>
-          <mesh position={[10.2, 3.32, -2.1]} castShadow receiveShadow>
-            <boxGeometry args={[10.8, 0.14, 0.14]} />
-            <meshStandardMaterial color="#CBD5E1" metalness={0.25} roughness={0.4} emissive="#CBD5E1" emissiveIntensity={model.guideActive ? 0.08 : 0.02} />
-          </mesh>
-          <group position={[8.8, deckHeights.glue, 0]}>
-            {[-1, 1].map((sign) => (
-              <mesh key={sign} position={[0, 0, sign * 1.55]} castShadow receiveShadow>
-                <cylinderGeometry args={[0.12, 0.12, 0.55, 20]} />
-                <meshStandardMaterial color="#F59E0B" emissive="#F59E0B" emissiveIntensity={model.glueActive ? 1.4 : 0.25} />
-              </mesh>
-            ))}
-          </group>
+          <TransportBed />
+          <GlueStation glueActive={model.glueActive} guideActive={model.guideActive} />
           <LugTrack active={model.machineState === 'RUNNING' || model.machineState === 'RUN_EMPTY'} />
           <FormedCarton
             visible={model.packVisible}

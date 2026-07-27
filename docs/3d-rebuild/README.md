@@ -13,9 +13,13 @@ Optimizing and rebuilding the 3D tray packer scene
 
 ## Phase status
 
-Done: 0 (instrumentation) · 1 (poll loops) · 2 (registries + decomposition) · 5 (lighting)
+Done: 0 (instrumentation) · 1 (poll loops) · 2 (registries + decomposition) ·
+4 (static merging) · 5 (lighting)
 Partial: 3 (motion — damped follow in, full `SceneMotion` refactor out)
-Not started: 4 (static merging) · 6 (geometry corrections) · 7 (overlay cleanup)
+Not started: 6 (geometry corrections) · 7 (overlay cleanup)
+
+Draw calls 235 → 160, geometries 235 → 48, SimulationView3D.tsx 1427 → 358 lines.
+The ≤60 draw-call target is **not** met — see PERF.md for what still stands in the way.
 
 ## media/ index
 
