@@ -205,7 +205,6 @@ function MachineScene({
             rowCount={model.rowCount}
             colCount={model.colCount}
             compression={model.slugCompression}
-            productScale={model.productScale}
           />
           <SidePushers progress={model.sidePusherProgress} />
           <Box ref={pusherRef} mat="steelMid" pos={[MACHINE_LAYOUT_3D.productPath.transferX - 2.4, 2.96, 0]} size={[0.12, 0.96, 3.4]} castShadow receiveShadow />

@@ -21,7 +21,6 @@ export interface MachineSceneModel {
   slugVisible: boolean;
   slugX: number;
   slugCompression: number;
-  productScale: number;
   sidePusherProgress: number;
   chainInfeedActive: boolean;
   chainInfeedOffset: number;
@@ -183,7 +182,6 @@ export function useMachineSceneModel(state: SimulatorState | null): MachineScene
       slugVisible: slugOpacity > 0.02,
       slugX,
       slugCompression,
-      productScale: MACHINE_LAYOUT_3D.productSize3D,
       sidePusherProgress,
       chainInfeedActive: phase === 'BLANK_FEED' || phase === 'TRANSFER' || phase === 'CAPTURED',
       chainInfeedOffset: visualProgress,

@@ -111,6 +111,18 @@ async function main() {
   await page.waitForTimeout(2500);
   const running = path.join(OUT, '3dsim-running.png');
   await page.screenshot({ path: running });
+
+  // Per-station close-ups. Phase 6 checks each station against its OEM figure,
+  // and the overview camera is far too wide to judge geometry at that level.
+  for (const preset of ['Grouping', 'Transfer', 'Main Transport', 'Discharge']) {
+    const button = page.getByRole('button', { name: preset, exact: true });
+    if ((await button.count()) === 0) continue;
+    await button.first().click();
+    await page.waitForTimeout(1400);
+    const slug = preset.toLowerCase().replace(/\s+/g, '-');
+    await page.screenshot({ path: path.join(OUT, `preset-${slug}.png`) });
+    console.log('wrote', path.join(OUT, `preset-${slug}.png`));
+  }
   const phase = await page.evaluate(async () => {
     const r = await fetch('http://localhost:8000/state');
     const s = await r.json();

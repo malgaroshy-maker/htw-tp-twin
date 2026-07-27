@@ -215,6 +215,61 @@ geometry: drei's `<RoundedBox>` defaults to `smoothness = 4`, and the merged
 version uses 2 on seven large flat slabs where corner tessellation is invisible
 at every camera preset. Verified against the captures.
 
+## Phase 6 — geometry corrections (partial)
+
+### 6a — real proportions (done)
+
+`machineLayout.ts` now carries the real dimensions from OI 2-23 and derives scene
+geometry from them instead of eyeballed constants:
+
+```
+REAL_MM   product 47 x 33 mm, height 63-122 mm; tray 382 x 145 mm; lane pitch 145/3
+MM        scene units per mm, pinned so the 382 mm tray keeps its existing on-screen
+          length -- which keeps every zone position in MACHINE_LAYOUT_3D valid
+```
+
+| Was | Now |
+|---|---|
+| product a 0.46 **cube** | 0.256 x 0.852 x 0.364 — a tall slim carton, correct aspect |
+| tray 2.96 x 1.88 (1.57:1) | 2.96 x 1.124 (**2.63:1**, matching 382 x 145 mm) |
+| `laneSpread: 1.55` (3.10 span, arbitrary) | 0.375 pitch from 145/3 (**0.75 span**) |
+| `FormedCarton` walls along the wrong axes | side walls along travel, end flaps across |
+
+These are now internally consistent in a way they were not before: 3 lanes at
+0.375 pitch spans 1.12, which *is* the tray width; and products at 0.364 across
+nearly fill their lane, as they do on the real machine. Previously the scene drew
+tiny cubes spread over lanes four times too far apart.
+
+The lane span narrowing (3.10 → 0.75) is large and deliberate. Lane *count* stays
+driven by `cfg.grid_rows`; only the pitch is pinned to the manual, because the OEM
+plan view shows more lanes than format cb 12 has.
+
+### 6b — magazine (done)
+
+Four **separate** blank stacks with the >=20 mm gap the manual specifies, driven
+against an end stop (OI 5-25, OT p12). Previously one continuous pile.
+
+### 6g — glue heads (partial)
+
+Five applicator heads instead of two, staggered three/two across the rails per the
+CAD detail (OI 5-38 item 7, which labels "7" five times).
+
+### Not done in Phase 6
+
+- **6c** inner blank guide shaft / internal tray magazine — an entire station absent
+- **6d** separator, width adjustment, side frames, stopper, terminal
+- **6e** portal arch and five pusher plates at the chain infeed
+- **6f** blank transport drivers and curved guide plate
+- **6g** the rest: dual upper/lower transport chains, edge flap folders, corner cover
+  feeder, vertical gluing heads, upper/lower blank and pressure guides
+- **6h** discharge roller track on its own legs, safety roll, full sensor table
+
+Each affected component carries a `NOTE (Phase 6x)` comment naming its figure.
+
+## Phase 7 — overlay cleanup
+
+Not started. 5 `<Html>` overlays remain in scene components plus 11 `ZoneLabel`s.
+
 ## Phase 3 — motion smoothing (partial)
 
 `animation/constants.ts` now owns `SNAPSHOT_BLEND_MS` and `VISUAL_SPEED_SCALE`, and the

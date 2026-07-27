@@ -1,5 +1,5 @@
 import { memo, useMemo } from 'react';
-import { MACHINE_LAYOUT_3D } from '../../../machineLayout';
+import { MACHINE_LAYOUT_3D, MM } from '../../../machineLayout';
 import { materials } from '../../core/materials';
 import { mergeStaticParts } from '../../core/merge';
 import type { StaticPart } from '../../core/merge';
@@ -7,13 +7,20 @@ import type { StaticPart } from '../../core/merge';
 const { zones, deckHeights, blankPath } = MACHINE_LAYOUT_3D;
 const CAST = { castShadow: true, receiveShadow: true } as const;
 
+/** The manual specifies at least 20 mm between adjacent blank stacks. */
+const STACK_GAP = 20 * MM;
+
 /**
  * Static structure of the blank magazine, cross transfer and blank withdraw.
  *
- * NOTE (Phase 6b/6c): the real magazine holds four *separate* blank stacks with
- * a >=20 mm gap, fed by a roll conveyor and a cross conveyor against a limit
- * stop, and hands off to an inner blank guide shaft — a station not modelled at
- * all here. See OI 5-25 / 5-33 in docs/3d-rebuild/media/.
+ * Four separate blank stacks with the >=20 mm gap the manual specifies, driven
+ * against an end stop by the feed rollers (OI 5-25, OT p12).
+ *
+ * NOTE (Phase 6c): still missing the *inner* blank guide shaft. On the real
+ * machine the cross transfer does not feed the suction arm directly — it fills
+ * an internal tray magazine, which the suction arm then draws from. That
+ * station is not modelled at all. Corroborated by the "Maximum Level internal
+ * Traymagazin" sensor in HTW_sensors.
  */
 const PARTS: StaticPart[] = [
   // Magazine cabinet
@@ -34,13 +41,28 @@ const PARTS: StaticPart[] = [
     ...CAST,
   })),
 
-  // Blank stack
-  ...Array.from({ length: 6 }, (_, i) => ({
-    mat: 'cartonAmber' as const,
-    size: [2.8, 0.09, 1.5] as [number, number, number],
-    pos: [zones.blankMagazine.x - 0.1 + i * 0.06, 2.38 + i * 0.08, zones.blankMagazine.z] as [number, number, number],
+  // Blank stacks: the magazine holds FOUR separate stacks with a >=20 mm gap
+  // between them, not one continuous pile (OI 5-25 / OT p12).
+  ...[0, 1, 2, 3].flatMap((stack) =>
+    Array.from({ length: 5 }, (_, i) => ({
+      mat: 'cartonAmber' as const,
+      size: [0.62, 0.09, 1.5] as [number, number, number],
+      pos: [
+        zones.blankMagazine.x - 1.15 + stack * (0.62 + STACK_GAP),
+        2.38 + i * 0.08,
+        zones.blankMagazine.z,
+      ] as [number, number, number],
+      ...CAST,
+    }))
+  ),
+
+  // End stop the stacks are driven against (OI 5-25 item 4)
+  {
+    mat: 'steelLight',
+    size: [0.12, 1.1, 2.2],
+    pos: [zones.blankMagazine.x + 1.55, 2.1, zones.blankMagazine.z],
     ...CAST,
-  })),
+  },
 
   // Cross transfer plate
   {

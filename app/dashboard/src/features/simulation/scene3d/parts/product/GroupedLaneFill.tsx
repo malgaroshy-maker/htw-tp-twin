@@ -1,9 +1,10 @@
 import { memo, useMemo } from 'react';
 import { Box } from '../../core/primitives';
-import { MACHINE_LAYOUT_3D, getLaneZ3D } from '../../../machineLayout';
+import { MACHINE_LAYOUT_3D, getLaneZ3DReal, PRODUCT_SIZE_3D, REAL_MM, MM } from '../../../machineLayout';
 
 const GROUPING = MACHINE_LAYOUT_3D.zones.grouping;
-const P = MACHINE_LAYOUT_3D.productSize3D;
+/** Along-travel pitch: product depth plus the gap implied by the format table. */
+const SLOT_PITCH = (REAL_MM.tray.length / 10) * MM;
 
 /**
  * Products accumulating in the grouping lanes behind the product clamp
@@ -22,7 +23,7 @@ export const GroupedLaneFill = memo(function GroupedLaneFill({
   rowCount: number;
   colCount: number;
 }) {
-  const laneZ = useMemo(() => getLaneZ3D(rowCount), [rowCount]);
+  const laneZ = useMemo(() => getLaneZ3DReal(rowCount), [rowCount]);
   const activeLaneIndex = Math.max(0, laneFillCounts.findIndex((count) => count < colCount));
 
   return (
@@ -32,7 +33,7 @@ export const GroupedLaneFill = memo(function GroupedLaneFill({
           key={`lane-base-${lane}`}
           mat={lane === activeLaneIndex ? 'laneBaseActive' : 'laneBaseIdle'}
           pos={[GROUPING.x, MACHINE_LAYOUT_3D.deckHeights.high + 0.02, z]}
-          size={[GROUPING.width - 0.4, 0.05, 0.78]}
+          size={[GROUPING.width - 0.4, 0.05, PRODUCT_SIZE_3D[2] * 1.1]}
           receiveShadow
         />
       ))}
@@ -42,8 +43,12 @@ export const GroupedLaneFill = memo(function GroupedLaneFill({
           <Box
             key={`${lane}-${slot}`}
             mat="product"
-            pos={[GROUPING.x - 2.65 + slot * 0.62, MACHINE_LAYOUT_3D.deckHeights.products, laneZ[lane]]}
-            size={[P, P, P]}
+            pos={[
+              GROUPING.x - 2.65 + slot * SLOT_PITCH,
+              MACHINE_LAYOUT_3D.deckHeights.products + PRODUCT_SIZE_3D[1] / 2,
+              laneZ[lane],
+            ]}
+            size={PRODUCT_SIZE_3D}
             castShadow
             receiveShadow
           />
@@ -58,7 +63,7 @@ export const GroupedLaneFill = memo(function GroupedLaneFill({
           MACHINE_LAYOUT_3D.deckHeights.products - 0.08,
           laneZ[Math.min(activeLaneIndex, rowCount - 1)],
         ]}
-        size={[0.22, 1.16, 1.48]}
+        size={[0.22, PRODUCT_SIZE_3D[1] * 1.2, 1.48]}
         castShadow
         receiveShadow
       />

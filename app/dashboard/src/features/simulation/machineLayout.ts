@@ -91,6 +91,62 @@ export const MACHINE_LAYOUT_3D = {
   productScale2D: 0.82,
 };
 
+/**
+ * Real machine dimensions, from the Meurer operating instructions.
+ *
+ * Format cb 12 (OI 2-23, docs/3d-rebuild/media/02-23_formats-table.png):
+ *   product base   47 x 33 mm, heights 63 / 86 / 110 / 122 mm (80-180 ml)
+ *   formation      3 x 8, 3 x 9, 3 x 10
+ *   tray footprint 310 / 345 / 382 x 145 mm
+ *
+ * Axis convention in the scene: X is machine travel, Z is across the lanes.
+ * So a product is 33 mm along X, 47 mm along Z, and tall in Y — nothing like
+ * the cube (`productSize3D: 0.46`) the scene used to draw.
+ */
+export const REAL_MM = {
+  product: { alongTravel: 33, acrossLanes: 47, height: 110 },
+  tray: { length: 382, width: 145 },
+  /** 145 mm across 3 lanes. Drives lane pitch rather than an arbitrary spread. */
+  lanePitch: 145 / 3,
+} as const;
+
+/**
+ * Scene units per millimetre.
+ *
+ * Chosen so the 382 mm tray keeps roughly the on-screen length it already had
+ * (~2.96 units), which keeps the existing zone layout in `MACHINE_LAYOUT_3D`
+ * valid. Everything product-sized is then derived rather than eyeballed.
+ */
+export const MM = 2.96 / REAL_MM.tray.length;
+
+/** Product box size in scene units, [X, Y, Z]. */
+export const PRODUCT_SIZE_3D: [number, number, number] = [
+  REAL_MM.product.alongTravel * MM,
+  REAL_MM.product.height * MM,
+  REAL_MM.product.acrossLanes * MM,
+];
+
+/** Tray footprint in scene units, [X, Z]. */
+export const TRAY_SIZE_3D: [number, number] = [
+  REAL_MM.tray.length * MM,
+  REAL_MM.tray.width * MM,
+];
+
+/**
+ * Lane centre offsets in Z, derived from the real 48.3 mm pitch.
+ *
+ * NOTE: this is much tighter than the old `laneSpread: 1.55` (a 3.1-unit span
+ * where the real 3-lane span is 0.75). The OEM plan view shows more lanes than
+ * the cb 12 format has, which is consistent with the drawings depicting a wider
+ * format variant — so lane *count* stays driven by `cfg.grid_rows` and only the
+ * pitch is pinned to the manual.
+ */
+export function getLaneZ3DReal(rows: number) {
+  const pitch = REAL_MM.lanePitch * MM;
+  const span = (rows - 1) * pitch;
+  return Array.from({ length: rows }, (_, lane) => -span / 2 + lane * pitch);
+}
+
 function lerp(from: number, to: number, t: number) {
   return from + (to - from) * t;
 }

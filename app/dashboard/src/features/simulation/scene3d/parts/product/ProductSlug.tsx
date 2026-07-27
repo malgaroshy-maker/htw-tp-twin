@@ -3,7 +3,7 @@ import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { geometries } from '../../core/geometries';
 import { materials } from '../../core/materials';
-import { MACHINE_LAYOUT_3D } from '../../../machineLayout';
+import { MACHINE_LAYOUT_3D, PRODUCT_SIZE_3D, REAL_MM, MM } from '../../../machineLayout';
 import { lerp } from '../../core/mathUtils';
 import { damp, FOLLOW_LAMBDA } from '../../../animation/constants';
 
@@ -15,6 +15,9 @@ import { damp, FOLLOW_LAMBDA } from '../../../animation/constants';
  */
 const MAX_INSTANCES = 8 * 16;
 
+/** Along-travel slot pitch, from the tray footprint in OI 2-23. */
+const SLOT_PITCH = (REAL_MM.tray.length / 10) * MM;
+
 /** The grouped product formation travelling into and through the packing section. */
 export const ProductSlug = memo(function ProductSlug({
   visible,
@@ -23,7 +26,6 @@ export const ProductSlug = memo(function ProductSlug({
   rowCount,
   colCount,
   compression,
-  productScale,
 }: {
   visible: boolean;
   x: number;
@@ -31,7 +33,6 @@ export const ProductSlug = memo(function ProductSlug({
   rowCount: number;
   colCount: number;
   compression: number;
-  productScale: number;
 }) {
   const groupRef = useRef<THREE.Group>(null);
   const displayX = useRef(x);
@@ -55,11 +56,13 @@ export const ProductSlug = memo(function ProductSlug({
     const count = Math.min(rowCount * colCount, MAX_INSTANCES);
     mesh.count = count;
 
-    const key = `${rowCount}:${colCount}:${compression.toFixed(3)}:${productScale.toFixed(3)}`;
+    const key = `${rowCount}:${colCount}:${compression.toFixed(3)}`;
     if (key === lastLayout.current) return;
     lastLayout.current = key;
 
-    const rowSpacing = lerp(2.15, 0.95, compression);
+    // Lanes converge from their grouping spread to the packed tray pitch.
+    const packedPitch = REAL_MM.lanePitch * MM;
+    const rowSpacing = lerp(packedPitch * 2.2, packedPitch, compression);
     const zPositions = Array.from({ length: rowCount }, (_, lane) =>
       lerp(-rowSpacing, rowSpacing, rowCount === 1 ? 0.5 : lane / (rowCount - 1))
     );
@@ -68,8 +71,8 @@ export const ProductSlug = memo(function ProductSlug({
     for (let row = 0; row < rowCount; row++) {
       for (let col = 0; col < colCount; col++) {
         if (i >= MAX_INSTANCES) break;
-        dummy.position.set(col * 0.54, 0, zPositions[row]);
-        dummy.scale.setScalar(productScale);
+        dummy.position.set(col * SLOT_PITCH, 0, zPositions[row]);
+        dummy.scale.set(...PRODUCT_SIZE_3D);
         dummy.updateMatrix();
         mesh.setMatrixAt(i++, dummy.matrix);
       }

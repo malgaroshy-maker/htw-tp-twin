@@ -6,6 +6,15 @@ import { MACHINE_LAYOUT_3D } from '../../../machineLayout';
 
 const { deckHeights } = MACHINE_LAYOUT_3D;
 
+/** [x, z] of each applicator head. */
+const GLUE_HEADS: [number, number][] = [
+  [7.4, 1.55],
+  [8.8, 1.55],
+  [10.2, 1.55],
+  [8.1, -1.55],
+  [9.5, -1.55],
+];
+
 /**
  * Glue rails, closing guides and applicator nozzles.
  *
@@ -42,12 +51,17 @@ export const GlueStation = memo(function GlueStation({
         <Box key={`closing-guide-${z}`} mat="clampBar" pos={[10.2, 3.32, z]} size={[10.8, 0.14, 0.14]} castShadow receiveShadow />
       ))}
 
-      {/* Applicator nozzles */}
-      <group position={[8.8, deckHeights.glue, 0]}>
-        {[-1, 1].map((sign) => (
-          <Cyl key={sign} mat="amberOn" pos={[0, 0, sign * 1.55]} size={[0.24, 0.55, 0.24]} castShadow receiveShadow />
-        ))}
-      </group>
+      {/*
+        Five applicator heads, per OI 5-38 item 7 (the figure labels 7 five
+        times). Three on the near rail, two on the far one, staggered along
+        travel as in the CAD detail.
+      */}
+      {GLUE_HEADS.map(([x, z], i) => (
+        <group key={i} position={[x, deckHeights.glue, z]}>
+          <Cyl mat="amberOn" size={[0.24, 0.55, 0.24]} castShadow receiveShadow />
+          <Box mat="steelDark" pos={[0, 0.42, 0]} size={[0.3, 0.34, 0.3]} castShadow receiveShadow />
+        </group>
+      ))}
     </group>
   );
 });

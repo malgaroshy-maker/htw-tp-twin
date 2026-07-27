@@ -62,7 +62,7 @@ Four problems, all confirmed with the user:
 | 3 | Motion smoothing | **Partial** — damped follow in place; full `SceneMotion` refactor outstanding |
 | 4 | Static geometry merging | **Done** — draw calls 273 -> 160; ≤60 target still not met |
 | 5 | Lighting and materials | **Done** |
-| 6 | Geometry corrections + missing stations (6a–6h) | Not started |
+| 6 | Geometry corrections + missing stations (6a–6h) | **Partial** — 6a proportions, 6b magazine, 6g glue heads done; 6c–6f and most of 6g/6h remain |
 | 7 | Overlay cleanup (`<Html>` 15 → ≤4) | Not started |
 
 ### Measured results so far
@@ -72,7 +72,7 @@ Four problems, all confirmed with the user:
 | `/state` polls on Overview | 4.0 req/s (2 loops) | 2.0 req/s (1 loop) |
 | `SimulationView3D.tsx` | 1427 lines | 358 lines |
 | Live geometries | 235 | 48 |
-| Draw calls | 235 | 160 |
+| Draw calls | 235 | 168 |
 | Dead SVG components | 13 | 0 |
 
 Draw calls fell 32% while also absorbing the ~38-call cost of image-based lighting, so
