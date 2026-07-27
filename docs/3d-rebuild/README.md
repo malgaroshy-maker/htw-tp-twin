@@ -8,8 +8,8 @@ Optimizing and rebuilding the 3D tray packer scene
 | `PLAN.md` | The implementation plan — architecture, phases, verification targets |
 | `PERF.md` | **Measurements and phase status.** Start here for what has actually changed |
 | `MACHINE_REFERENCE.md` | Machine ground truth extracted from the OEM PDFs; the acceptance criterion for geometry |
-| `media/` | Pages rendered from `docs/365257_18_OI.pdf` at 150 dpi — the CAD figures the geometry work is checked against |
-| `captures/` | Harness output (gitignored — regenerate with `npm run capture3d`) |
+| `media/` | **Local only, not in git.** Pages rendered from `docs/365257_18_OI.pdf` at 150 dpi — the CAD figures the geometry work is checked against. Regenerate with the snippet below. |
+| `captures/` | Harness output. **Local only** — regenerate with `npm run capture3d` |
 
 ## Phase status — all complete
 
@@ -68,6 +68,23 @@ npm run capture3d   # poll rate, renderer counters, captures, leak check
 | `05-51_flap-detection.png` | OI 5-51 | Open-flap detection |
 | `05-55_outfeed_text.png` | OI 5-55 | Outfeed description |
 | `05-56_outfeed_cad.png` | OI 5-56 | **Outfeed CAD** — reject conveyor, discharge roller track, safety roll |
+
+## Why the source documents are not in git
+
+This repository is public. The OEM operating instructions and the SIG training
+decks are the manufacturer's copyrighted material, and the training decks carry
+an individual's name on every page, so they are gitignored along with the pages
+rendered from them.
+
+`MACHINE_REFERENCE.md` records every fact extracted from them — parts lists,
+formats, the sensor inventory — which is what the geometry work actually needs.
+Put the three PDFs in `docs/` locally and re-render any figure with the snippet
+below.
+
+> Note: the three PDFs were present in this repository's initial commit and are
+> therefore still reachable in the published git history. Untracking them stops
+> further exposure but does not remove them from history; that needs a history
+> rewrite and a force push, or making the repository private.
 
 ## Reproducing a page render
 

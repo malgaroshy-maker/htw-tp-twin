@@ -37,6 +37,15 @@ eslint.json
 # Playwright captures — regenerate with `npm run capture3d`
 docs/3d-rebuild/captures/
 
+# OEM documentation: manufacturer operating instructions and training decks.
+# This repository is public, and the training material carries an individual's
+# name on every page. Keep the source documents local; MACHINE_REFERENCE.md
+# records everything extracted from them, and the README documents how to
+# re-render any page.
+docs/*.pdf
+docs/3d-rebuild/media/
+docs/manual_extracts/images/
+
 # Node / Frontend
 node_modules/
 dist/
