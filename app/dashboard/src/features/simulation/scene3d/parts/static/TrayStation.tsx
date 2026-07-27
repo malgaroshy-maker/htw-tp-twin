@@ -3,6 +3,7 @@ import { MACHINE_LAYOUT_3D, MM } from '../../../machineLayout';
 import { materials } from '../../core/materials';
 import { useMergedParts } from '../../core/useMergedParts';
 import type { StaticPart } from '../../core/merge';
+import { SHAFT_X, SHAFT_Z } from '../blank/shaftGeometry';
 
 const { zones, deckHeights, blankPath } = MACHINE_LAYOUT_3D;
 const CAST = { castShadow: true, receiveShadow: true } as const;
@@ -16,11 +17,10 @@ const STACK_GAP = 20 * MM;
  * Four separate blank stacks with the >=20 mm gap the manual specifies, driven
  * against an end stop by the feed rollers (OI 5-25, OT p12).
  *
- * NOTE (Phase 6c): still missing the *inner* blank guide shaft. On the real
- * machine the cross transfer does not feed the suction arm directly — it fills
- * an internal tray magazine, which the suction arm then draws from. That
- * station is not modelled at all. Corroborated by the "Maximum Level internal
- * Traymagazin" sensor in HTW_sensors.
+ * The inner blank guide shaft the cross transfer actually feeds is a separate
+ * component (`InnerMagazine`); the hold-downs here bracket its mouth, so their X
+ * comes from `SHAFT_X` rather than from three fixed numbers that were centred on
+ * where the shaft used to be.
  */
 const PARTS: StaticPart[] = [
   // Magazine cabinet
@@ -73,8 +73,8 @@ const PARTS: StaticPart[] = [
   },
 
   // Blank hold-downs, both sides (OI 5-33 item 2)
-  ...[1.42, 3.0].flatMap((z) =>
-    [-6.7, -5.8, -4.9].map((x) => ({
+  ...[SHAFT_Z - 0.78, SHAFT_Z + 0.8].flatMap((z) =>
+    [SHAFT_X - 0.9, SHAFT_X, SHAFT_X + 0.9].map((x) => ({
       mat: 'steelLight' as const,
       size: [0.1, 0.72, 0.18] as [number, number, number],
       pos: [x, 2.38, z] as [number, number, number],

@@ -14,15 +14,6 @@ const EDGE_OFFSETS = [-0.96, 0.96];
  * The flat carton blank in transit, approximated by short segments sampled along
  * the lift path so it bends over the ramp instead of clipping through it.
  *
- * `x` arrives from the 500 ms poll, so binding it straight to position made the
- * blank jump twice a second. The displayed x chases the target with a
- * frame-rate-independent damped follow, and the segment poses are re-sampled
- * per frame — a plain group translate would be wrong on the curved ramp.
- */
-/**
- * The flat carton blank in transit, approximated by short segments sampled along
- * the lift path so it bends over the ramp instead of clipping through it.
- *
  * All 13 pieces are one InstancedMesh: the blank bends, so it cannot be a single
  * rigid mesh, but it also does not need 13 draw calls.
  *

@@ -36,7 +36,6 @@ export interface MachineSceneModel {
   guideActive: boolean;
   rejectActive: boolean;
   rejectCount: number;
-  rejectConveyorPositions: number[];
   lastRejectReason: string;
   faultCode: string;
   warningCode: string;
@@ -171,10 +170,6 @@ export function useMachineSceneModel(state: SimulatorState | null): MachineScene
       packFormProgress = 1;
     }
 
-    const rejectConveyorPositions = Array.from({ length: Math.min(3, out.reject_accumulation_count) }, (_, index) =>
-      productPath.rejectBranchX + index * 1.15
-    );
-
     return {
       phase,
       phaseProgress: progress,
@@ -209,7 +204,6 @@ export function useMachineSceneModel(state: SimulatorState | null): MachineScene
       guideActive: phase === 'PACKING' || phase === 'DISCHARGE',
       rejectActive: phase === 'DISCHARGE' && (sns.open_flap_detected || !sns.tray_plate_sensor_ok),
       rejectCount: out.reject_accumulation_count,
-      rejectConveyorPositions,
       lastRejectReason: out.last_reject_reason,
       faultCode: state.fault.active_code,
       warningCode: state.warn.active_code,

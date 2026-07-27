@@ -3,8 +3,7 @@ import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { geometries } from '../../core/geometries';
 import { materials } from '../../core/materials';
-import { MACHINE_LAYOUT_3D, PRODUCT_SIZE_3D, REAL_MM, MM } from '../../../machineLayout';
-import { lerp } from '../../core/mathUtils';
+import { MACHINE_LAYOUT_3D, PRODUCT_SIZE_3D, REAL_MM, MM, getLaneZ3DReal } from '../../../machineLayout';
 import { damp, FOLLOW_LAMBDA } from '../../../animation/constants';
 
 /**
@@ -25,14 +24,12 @@ export const ProductSlug = memo(function ProductSlug({
   opacity,
   rowCount,
   colCount,
-  compression,
 }: {
   visible: boolean;
   x: number;
   opacity: number;
   rowCount: number;
   colCount: number;
-  compression: number;
 }) {
   const groupRef = useRef<THREE.Group>(null);
   const displayX = useRef(x);
@@ -56,22 +53,24 @@ export const ProductSlug = memo(function ProductSlug({
     const count = Math.min(rowCount * colCount, MAX_INSTANCES);
     mesh.count = count;
 
-    const key = `${rowCount}:${colCount}:${compression.toFixed(3)}`;
+    const key = `${rowCount}:${colCount}`;
     if (key === lastLayout.current) return;
     lastLayout.current = key;
 
-    // Lanes converge from their grouping spread to the packed tray pitch.
-    const packedPitch = REAL_MM.lanePitch * MM;
-    const rowSpacing = lerp(packedPitch * 2.2, packedPitch, compression);
-    const zPositions = Array.from({ length: rowCount }, (_, lane) =>
-      lerp(-rowSpacing, rowSpacing, rowCount === 1 ? 0.5 : lane / (rowCount - 1))
-    );
+    /*
+     * The lanes and the tray share one pitch in this model — 145 mm across three
+     * lanes is exactly the tray's own 3-across pitch (OI 2-23) — so the slug
+     * keeps the lane spacing all the way through. It used to start 2.2x wider
+     * and converge, which meant the formation visibly sprang apart the instant it
+     * left the lanes and squeezed back together before the tray.
+     */
+    const zPositions = getLaneZ3DReal(rowCount);
 
     let i = 0;
     for (let row = 0; row < rowCount; row++) {
       for (let col = 0; col < colCount; col++) {
         if (i >= MAX_INSTANCES) break;
-        dummy.position.set(col * SLOT_PITCH, 0, zPositions[row]);
+        dummy.position.set(col * SLOT_PITCH, PRODUCT_SIZE_3D[1] / 2, zPositions[row]);
         dummy.scale.set(...PRODUCT_SIZE_3D);
         dummy.updateMatrix();
         mesh.setMatrixAt(i++, dummy.matrix);

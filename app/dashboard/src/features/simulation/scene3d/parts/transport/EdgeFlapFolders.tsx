@@ -1,4 +1,4 @@
-import { memo, useMemo, useRef } from 'react';
+import { memo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { Group } from 'three';
@@ -6,7 +6,7 @@ import { materials } from '../../core/materials';
 import { MACHINE_LAYOUT_3D } from '../../../machineLayout';
 import { TRAY_SIZE_3D } from '../../../machineLayout';
 
-const { deckHeights } = MACHINE_LAYOUT_3D;
+const { deckHeights, productPath } = MACHINE_LAYOUT_3D;
 const [, TRAY_Z] = TRAY_SIZE_3D;
 
 /**
@@ -22,10 +22,34 @@ const [, TRAY_Z] = TRAY_SIZE_3D;
  * The blade is a torus arc so the fold reads as a sweep rather than a scale.
  */
 
-const FOLDER_X = 13.2;
+/**
+ * The folders act over `formProgress` 0.55 -> 0.90, and `packX` sweeps
+ * `packStartX -> packEndX` linearly over the PACKING phase, so the pack is
+ * between these two X positions while the blades move. Standing them at their
+ * midpoint means the sweep coincides with the tray arriving. They used to be
+ * pinned at x = 13.2, more than a unit downstream of where the pack ever is
+ * during the fold — the blades closed on nothing and were already open again by
+ * the time the carton reached them.
+ */
+const FOLD_WINDOW_START = 0.55;
+const FOLD_WINDOW_END = 0.9;
+const packXAtFormProgress = (fp: number) => {
+  // Inverse of the PACKING branch of useMachineSceneModel.
+  const visual = 0.34 + ((fp - 0.08) / 0.92) * 0.66;
+  return productPath.packStartX + (productPath.packEndX - productPath.packStartX) * visual;
+};
+const FOLDER_X =
+  (packXAtFormProgress(FOLD_WINDOW_START) + packXAtFormProgress(FOLD_WINDOW_END)) / 2;
+
 const BLADE_RADIUS = 0.42;
 const OPEN_ANGLE = 0;
 const CLOSED_ANGLE = -0.7;
+
+/**
+ * One arc, shared by both blades and by every mount of the scene. It was built
+ * in a `useMemo` and never disposed, so each mount leaked a geometry.
+ */
+const BLADE_GEOMETRY = new THREE.TorusGeometry(BLADE_RADIUS, 0.05, 8, 16, Math.PI * 0.62);
 
 export const EdgeFlapFolders = memo(function EdgeFlapFolders({
   formProgress,
@@ -37,15 +61,14 @@ export const EdgeFlapFolders = memo(function EdgeFlapFolders({
   const leftRef = useRef<Group>(null);
   const rightRef = useRef<Group>(null);
 
-  // One arc geometry, shared by both blades.
-  const bladeGeometry = useMemo(
-    () => new THREE.TorusGeometry(BLADE_RADIUS, 0.05, 8, 16, Math.PI * 0.62),
-    []
-  );
-
   useFrame(() => {
     // The folders act late in the fold, after the side walls are up.
-    const t = active ? Math.max(0, Math.min(1, (formProgress - 0.55) / 0.35)) : 0;
+    const t = active
+      ? Math.max(
+          0,
+          Math.min(1, (formProgress - FOLD_WINDOW_START) / (FOLD_WINDOW_END - FOLD_WINDOW_START))
+        )
+      : 0;
     const eased = t * t * (3 - 2 * t);
     const angle = OPEN_ANGLE + (CLOSED_ANGLE - OPEN_ANGLE) * eased;
 
@@ -70,7 +93,7 @@ export const EdgeFlapFolders = memo(function EdgeFlapFolders({
           {/* Sweeping blade */}
           <group ref={ref}>
             <mesh
-              geometry={bladeGeometry}
+              geometry={BLADE_GEOMETRY}
               material={mats.rubberBlack}
               rotation={[0, Math.PI / 2, Math.PI * 0.2]}
               position={[0, 0, 0]}

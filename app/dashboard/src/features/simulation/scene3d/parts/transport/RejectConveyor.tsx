@@ -111,12 +111,13 @@ const TRACK_PARTS: StaticPart[] = [
 ];
 
 export const RejectConveyor = memo(function RejectConveyor({
-  storedPositions,
+  storedCount,
   active,
   liveRejectActive,
   liveRejectX,
 }: {
-  storedPositions: number[];
+  /** How many rejects have accumulated on the track. */
+  storedCount: number;
   active: boolean;
   liveRejectActive: boolean;
   /** Progress 0..1 of the pack currently being diverted. */
@@ -131,11 +132,11 @@ export const RejectConveyor = memo(function RejectConveyor({
   useFrame(() => {
     const mesh = storedRef.current;
     if (!mesh) return;
-    const key = String(storedPositions.length);
+    const key = String(storedCount);
     if (key === lastStored.current) return;
     lastStored.current = key;
 
-    const n = Math.min(storedPositions.length, MAX_STORED);
+    const n = Math.min(storedCount, MAX_STORED);
     for (let i = 0; i < n; i += 1) {
       dummy.position.set(BRANCH_X, TRACK_Y + 0.2, storedZ(i));
       dummy.rotation.set(0, 0, 0);

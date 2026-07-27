@@ -68,7 +68,13 @@ export const FormedCarton = memo(function FormedCarton({
     }
 
     group.position.x = damp(group.position.x, x, FOLLOW_LAMBDA, delta);
-    group.position.z = damp(group.position.z, z + (rejectActive ? 2.4 : 0), FOLLOW_LAMBDA * 0.8, delta);
+    /*
+     * The pack no longer swerves in Z on a reject. `RejectConveyor` already draws
+     * the diverted pack travelling out along the branch, so shifting this one too
+     * put *two* rejected packs on screen at once, on different paths. This one
+     * stays on the transport; the branch owns the divert.
+     */
+    group.position.z = damp(group.position.z, z, FOLLOW_LAMBDA * 0.8, delta);
 
     const sideHeight = lerp(0.01, 1, Math.max(0, (formProgress - 0.12) / 0.88));
     const sideInset = lerp(TRAY_Z / 2 + 0.12, TRAY_Z / 2, formProgress);
@@ -125,14 +131,24 @@ export const FormedCarton = memo(function FormedCarton({
     }
 
     // Both seals share one registry material — they are always in the same state.
-    materials().amberOn.emissiveIntensity = Math.max(0, (formProgress - 0.78) / 0.22) * 0.6;
+    // `glueSeal` is theirs alone: they used `amberOn`, which GlueStation also
+    // rewrites every frame, so the two fought over the same emissive.
+    materials().glueSeal.emissiveIntensity = Math.max(0, (formProgress - 0.78) / 0.22) * 0.6;
   });
 
   if (!visible) return null;
 
   return (
-    <group ref={groupRef} position={[x, MACHINE_LAYOUT_3D.deckHeights.products - 0.22, z]}>
-      <Box mat="cartonBase" size={[TRAY_X, 0.045, TRAY_Z]} castShadow receiveShadow />
+    // The tray floor rests *on* the chain, whose top face is `deckHeights.products`.
+    // It used to sit 0.22 below that, so the pack was sunk through the carriers
+    // it is supposed to be riding on.
+    <group ref={groupRef} position={[x, MACHINE_LAYOUT_3D.deckHeights.products + 0.0225, z]}>
+      <Box
+        mat={rejectActive ? 'rejectBox' : 'cartonBase'}
+        size={[TRAY_X, 0.045, TRAY_Z]}
+        castShadow
+        receiveShadow
+      />
 
       {/* The product formation the tray is being wrapped around */}
       <instancedMesh
@@ -151,8 +167,8 @@ export const FormedCarton = memo(function FormedCarton({
       <Box ref={topPanelRef} mat="cartonFold" pos={[0, WALL_H, 0]} size={[TRAY_X, 0.028, TRAY_Z * 0.94]} castShadow receiveShadow />
 
       {/* Glue seal strips */}
-      <Box ref={topSealLeftRef} mat="amberOn" pos={[0, WALL_H, TRAY_Z / 2 - 0.04]} size={[TRAY_X * 0.96, 0.02, 0.03]} castShadow receiveShadow />
-      <Box ref={topSealRightRef} mat="amberOn" pos={[0, WALL_H, -TRAY_Z / 2 + 0.04]} size={[TRAY_X * 0.96, 0.02, 0.03]} castShadow receiveShadow />
+      <Box ref={topSealLeftRef} mat="glueSeal" pos={[0, WALL_H, TRAY_Z / 2 - 0.04]} size={[TRAY_X * 0.96, 0.02, 0.03]} castShadow receiveShadow />
+      <Box ref={topSealRightRef} mat="glueSeal" pos={[0, WALL_H, -TRAY_Z / 2 + 0.04]} size={[TRAY_X * 0.96, 0.02, 0.03]} castShadow receiveShadow />
 
       {/* Fold creases */}
       {[-TRAY_Z / 2 + 0.06, TRAY_Z / 2 - 0.06].map((zOffset) => (

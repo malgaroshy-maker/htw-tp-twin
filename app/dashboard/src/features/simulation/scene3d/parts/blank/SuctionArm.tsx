@@ -3,7 +3,7 @@ import { useFrame } from '@react-three/fiber';
 import type { Group, Mesh } from 'three';
 import { Box, Cyl } from '../../core/primitives';
 import { materials } from '../../core/materials';
-import { SHAFT_PICK } from './shaftGeometry';
+import { SHAFT_PICK, DEPOSIT_Y } from './shaftGeometry';
 
 /**
  * Suction arm at the blank withdraw station (OI 5-33 item 3).
@@ -21,8 +21,6 @@ import { SHAFT_PICK } from './shaftGeometry';
 
 /** Cup offset below the arm beam. */
 const CUP_DROP = 0.92;
-/** Where the blank is released onto the transport. */
-const DEPOSIT_Y = 1.16;
 
 const TOP_Y = SHAFT_PICK.y + CUP_DROP;
 const BOTTOM_Y = DEPOSIT_Y + CUP_DROP;

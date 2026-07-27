@@ -6,17 +6,30 @@ import { geometries } from '../../core/geometries';
 import { materials } from '../../core/materials';
 import { useMergedParts } from '../../core/useMergedParts';
 import type { StaticPart } from '../../core/merge';
-import { MACHINE_LAYOUT_3D } from '../../../machineLayout';
+import { MACHINE_LAYOUT_3D, TRAY_SIZE_3D } from '../../../machineLayout';
 
-const { deckHeights } = MACHINE_LAYOUT_3D;
+const { deckHeights, zones } = MACHINE_LAYOUT_3D;
+const [, TRAY_Z] = TRAY_SIZE_3D;
+
+/**
+ * Z of the glue line: just clear of the carton wall it applies to.
+ *
+ * Every Z in this file was a fixed number from before the format table pinned
+ * the tray to 145 mm — heads at ±1.55 and rails at ±2.08 against a carton whose
+ * walls are at ±0.56. The whole station stood about a unit outboard of the
+ * carton, applying glue to open air.
+ */
+const GLUE_Z = TRAY_Z / 2 + 0.12;
+const RAIL_Z = TRAY_Z / 2 + 0.2;
+const VERTICAL_Z = TRAY_Z / 2 + 0.3;
 
 /** [x, z] of each horizontal applicator head (OI 5-38 item 7). */
 const GLUE_HEADS: [number, number][] = [
-  [8.2, 1.55],
-  [9.6, 1.55],
-  [11.0, 1.55],
-  [8.9, -1.55],
-  [10.3, -1.55],
+  [8.2, GLUE_Z],
+  [9.6, GLUE_Z],
+  [11.0, GLUE_Z],
+  [8.9, -GLUE_Z],
+  [10.3, -GLUE_Z],
 ];
 
 /**
@@ -25,9 +38,13 @@ const GLUE_HEADS: [number, number][] = [
  * their own tray sensor ("Tray sensor release crosswise gluing").
  */
 const VERTICAL_GLUE_HEADS: [number, number][] = [
-  [12.2, 1.95],
-  [12.2, -1.95],
+  [12.2, VERTICAL_Z],
+  [12.2, -VERTICAL_Z],
 ];
+
+/** Rails run the length of the transport zone, not an arbitrary 10.8. */
+const RAIL_LENGTH = zones.mainTransport.width - 3.0;
+const RAIL_X = zones.mainTransport.x + 1.1;
 
 /**
  * Glue rails, closing guides and applicator nozzles.
@@ -83,13 +100,13 @@ export const GlueStation = memo(function GlueStation({
   return (
     <group>
       {/* Glue guide rails */}
-      {[2.08, -2.08].map((z) => (
-        <Box key={`glue-rail-${z}`} mat="glueRail" pos={[11.0, deckHeights.guides, z]} size={[10.8, 0.14, 0.14]} castShadow receiveShadow />
+      {[RAIL_Z, -RAIL_Z].map((z) => (
+        <Box key={`glue-rail-${z}`} mat="glueRail" pos={[RAIL_X, deckHeights.guides, z]} size={[RAIL_LENGTH, 0.14, 0.14]} castShadow receiveShadow />
       ))}
 
-      {/* Closing guides */}
-      {[2.1, -2.1].map((z) => (
-        <Box key={`closing-guide-${z}`} mat="clampBar" pos={[11.0, 3.32, z]} size={[10.8, 0.14, 0.14]} castShadow receiveShadow />
+      {/* Closing guides, running along the carton wall just above the deck */}
+      {[RAIL_Z, -RAIL_Z].map((z) => (
+        <Box key={`closing-guide-${z}`} mat="clampBar" pos={[RAIL_X, deckHeights.products + 0.3, z]} size={[RAIL_LENGTH, 0.14, 0.14]} castShadow receiveShadow />
       ))}
 
       {/*

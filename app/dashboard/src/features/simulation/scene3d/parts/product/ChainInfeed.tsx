@@ -5,9 +5,14 @@ import { Box, Cyl } from '../../core/primitives';
 import { materials } from '../../core/materials';
 import { useMergedParts } from '../../core/useMergedParts';
 import type { StaticPart } from '../../core/merge';
-import { MACHINE_LAYOUT_3D } from '../../../machineLayout';
+import { MACHINE_LAYOUT_3D, PRODUCT_SIZE_3D } from '../../../machineLayout';
 
 const TRANSFER = MACHINE_LAYOUT_3D.zones.transfer;
+const { deckHeights } = MACHINE_LAYOUT_3D;
+
+/** Height of the plate face, and where its centre must sit to engage product. */
+const PLATE_H = PRODUCT_SIZE_3D[1] * 0.45;
+const PLATE_CENTRE_Y = deckHeights.products + PLATE_H / 2 + 0.04;
 
 /**
  * Chain infeed pusher (OI 5-18).
@@ -19,12 +24,20 @@ const TRANSFER = MACHINE_LAYOUT_3D.zones.transfer;
  * plates need a clear gap to lower into.
  */
 
-/** Chain loop, in the XZ-travel / Y-height plane. */
+/**
+ * Chain loop, in the XZ-travel / Y-height plane.
+ *
+ * `cy` is derived so the **lower run sits at product height**. It was pinned at
+ * 3.95, putting the working run at y 3.13 — below `deckHeights.products` (3.44),
+ * so all five plates swept through the deck underneath the formation without ever
+ * touching it.
+ */
+const LOOP_HALF_H = 0.82;
 const LOOP = {
   cx: TRANSFER.x - 0.15,
-  cy: 3.95,
+  cy: PLATE_CENTRE_Y + LOOP_HALF_H,
   halfW: 2.2,
-  halfH: 0.82,
+  halfH: LOOP_HALF_H,
   radius: 0.62,
 };
 /** Pusher plates span the full lane width between the two frames. */
@@ -113,40 +126,49 @@ function buildFrame(z: number): StaticPart[] {
   return parts;
 }
 
+/** Top of the deck the formation slides across, and the foot of the portal. */
+const DECK_TOP = deckHeights.products;
+const LOOP_BOTTOM = LOOP.cy - LOOP.halfH;
+const FOOT_HEIGHT = LOOP_BOTTOM - DECK_TOP + 0.3;
+
 const STATIC_PARTS: StaticPart[] = [
-  // Deck the formation slides across
+  // Deck the formation slides across — its top face is the product surface.
   {
     mat: 'deckGlassDark',
     size: [5.25, 0.08, 4.08],
-    pos: [TRANSFER.x - 0.15, 3.02, 0],
+    pos: [TRANSFER.x - 0.15, DECK_TOP - 0.04, 0],
     receiveShadow: true,
   },
   // Portal frames, one each side
   ...buildFrame(-BAR_HALF_Z - 0.12),
   ...buildFrame(BAR_HALF_Z + 0.12),
-  // Frame feet
+  // Frame feet, bridging deck to the bottom of the chain loop
   ...[-1, 1].flatMap((sign) =>
     [-2.1, 2.1].map((dx) => ({
       mat: 'steelLight' as const,
-      size: [0.14, 1.0, 0.14] as [number, number, number],
-      pos: [TRANSFER.x - 0.15 + dx, 3.55, sign * (BAR_HALF_Z + 0.12)] as [number, number, number],
+      size: [0.14, FOOT_HEIGHT, 0.14] as [number, number, number],
+      pos: [
+        TRANSFER.x - 0.15 + dx,
+        DECK_TOP + FOOT_HEIGHT / 2,
+        sign * (BAR_HALF_Z + 0.12),
+      ] as [number, number, number],
       castShadow: true,
       receiveShadow: true,
     }))
   ),
-  // Alignment-station product guides (OI 5-18 item 1)
+  // Alignment-station product guides (OI 5-18 item 1), running along the deck
   ...[-1.55, 1.55].map((z) => ({
     mat: 'frame' as const,
     size: [4.3, 0.03, 0.05] as [number, number, number],
-    pos: [TRANSFER.x + 0.15, 3.0, z] as [number, number, number],
+    pos: [TRANSFER.x + 0.15, DECK_TOP + 0.02, z] as [number, number, number],
     castShadow: true,
     receiveShadow: true,
   })),
-  // Chain-infeed product guides (item 2)
+  // Chain-infeed product guides (item 2), at mid-product height
   ...[-1.55, -0.52, 0.52, 1.55].map((z) => ({
     mat: 'steelMid' as const,
     size: [4.36, 0.05, 0.06] as [number, number, number],
-    pos: [TRANSFER.x + 0.1, 3.19, z] as [number, number, number],
+    pos: [TRANSFER.x + 0.1, DECK_TOP + PRODUCT_SIZE_3D[1] * 0.55, z] as [number, number, number],
     castShadow: true,
     receiveShadow: true,
   })),
@@ -245,14 +267,14 @@ export const ChainInfeed = memo(function ChainInfeed({
             plateRefs.current[i] = m;
           }}
           mat="lugBody"
-          size={[0.16, 0.34, BAR_HALF_Z * 2]}
+          size={[0.16, PLATE_H, BAR_HALF_Z * 2]}
           castShadow
           receiveShadow
         />
       ))}
 
       {/* Gap monitoring sensor — the plates need a clear gap to lower into */}
-      <group position={[TRANSFER.x - 1.35, 3.6, 2.18]}>
+      <group position={[TRANSFER.x - 1.35, DECK_TOP + 0.16, 2.18]}>
         <Box mat="steelDark" size={[0.12, 0.62, 0.12]} castShadow receiveShadow />
         <Box
           mat={gapSensorActive ? 'sensorOn' : 'sensorOff'}
@@ -264,7 +286,7 @@ export const ChainInfeed = memo(function ChainInfeed({
       </group>
 
       {/* 3-D completeness camera, mounted over the loop (item 6) */}
-      <group position={[TRANSFER.x + 1.0, 5.15, 0]}>
+      <group position={[TRANSFER.x + 1.0, LOOP.cy + LOOP.halfH + 0.85, 0]}>
         <Box mat="steelLight" size={[0.48, 0.42, 0.62]} castShadow receiveShadow />
         <Cyl mat="cameraLens" pos={[0, -0.28, 0]} size={[0.24, 0.22, 0.24]} castShadow receiveShadow />
         <Box mat="steelMid" pos={[0, 0.34, 0]} size={[0.14, 0.5, 0.14]} castShadow receiveShadow />

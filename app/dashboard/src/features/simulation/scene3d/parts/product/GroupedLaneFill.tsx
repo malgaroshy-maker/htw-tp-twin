@@ -5,13 +5,16 @@ import { Box } from '../../core/primitives';
 import { geometries } from '../../core/geometries';
 import { materials } from '../../core/materials';
 import { MACHINE_LAYOUT_3D, getLaneZ3DReal, PRODUCT_SIZE_3D } from '../../../machineLayout';
-import { slotX, LANE_ENTRY_X } from './groupingGeometry';
+import { slotX, LANE_ENTRY_X, TERMINAL_X } from './groupingGeometry';
 import { damp, FOLLOW_LAMBDA } from '../../../animation/constants';
 
 const GROUPING = MACHINE_LAYOUT_3D.zones.grouping;
 
 /** Fixed upper bound so the instance buffer is never rebuilt on a recipe change. */
 const MAX_PRODUCTS = 8 * 16;
+
+/** Lane belt thickness. Slightly narrower than the lane pitch so belts don't merge. */
+const LANE_BELT_T = 0.05;
 
 /**
  * Products accumulating in the grouping lanes behind the product clamp
@@ -92,8 +95,11 @@ export const GroupedLaneFill = memo(function GroupedLaneFill({
         <Box
           key={`lane-base-${lane}`}
           mat={lane === activeLaneIndex ? 'laneBaseActive' : 'laneBaseIdle'}
-          pos={[GROUPING.x, MACHINE_LAYOUT_3D.deckHeights.high + 0.02, z]}
-          size={[GROUPING.width - 0.4, 0.05, PRODUCT_SIZE_3D[2] * 1.1]}
+          // Belt top flush with the surface product stands on. It was pinned to
+          // `deckHeights.high`, 0.37 below `deckHeights.products` — so every
+          // product in the lanes floated a third of its own height above its belt.
+          pos={[GROUPING.x, MACHINE_LAYOUT_3D.deckHeights.products - LANE_BELT_T / 2, z]}
+          size={[GROUPING.width - 0.4, LANE_BELT_T, PRODUCT_SIZE_3D[2] * 1.02]}
           receiveShadow
         />
       ))}
@@ -104,15 +110,20 @@ export const GroupedLaneFill = memo(function GroupedLaneFill({
         castShadow
       />
 
-      {/* Product clamp */}
+      {/*
+        Product clamp (OI 5-12 item 2): holds the incoming stream back in the lane
+        it is filling, so it belongs just upstream of the formation being built —
+        not at the lane entry, where it was, nine units away from any product.
+        It is also one lane wide; it used to be 1.48 deep, spanning all three.
+      */}
       <Box
         mat="clampBar"
         pos={[
-          MACHINE_LAYOUT_3D.productPath.groupingX - 1.85,
-          MACHINE_LAYOUT_3D.deckHeights.products - 0.08,
+          TERMINAL_X - 0.5,
+          MACHINE_LAYOUT_3D.deckHeights.products + PRODUCT_SIZE_3D[1] / 2,
           laneZ[Math.min(activeLaneIndex, rowCount - 1)],
         ]}
-        size={[0.22, PRODUCT_SIZE_3D[1] * 1.2, 1.48]}
+        size={[0.22, PRODUCT_SIZE_3D[1] * 1.05, PRODUCT_SIZE_3D[2] * 1.1]}
         castShadow
       />
     </group>

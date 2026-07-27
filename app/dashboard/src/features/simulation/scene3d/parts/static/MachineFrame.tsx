@@ -111,7 +111,7 @@ const STATIC_PARTS: StaticPart[] = [
     ...RECEIVE,
   },
   { mat: 'deckMatte', size: [6.8, 0.24, 4.9], pos: [3.2, 2.48, 0], radius: 0.12, ...RECEIVE },
-  { mat: 'deckMatte', size: [12.6, 0.24, 4.6], pos: [11.5, 2.5, 0], radius: 0.12, ...RECEIVE },
+  { mat: 'deckMatte', size: [zones.mainTransport.width - 0.4, 0.24, 4.6], pos: [zones.mainTransport.x, 2.5, 0], radius: 0.12, ...RECEIVE },
   {
     mat: 'deckMatte',
     size: [zones.blankMagazine.width + 0.4, 0.22, zones.blankMagazine.depth + 0.3],
@@ -146,7 +146,7 @@ const STATIC_PARTS: StaticPart[] = [
   ...[-1.88, 1.88].map((z) => ({
     mat: 'frame' as const,
     size: [12.1, 0.18, 0.18] as [number, number, number],
-    pos: [11.6, 3.08, z] as [number, number, number],
+    pos: [zones.mainTransport.x + 2.2, 3.08, z] as [number, number, number],
     ...CAST,
   })),
 ];

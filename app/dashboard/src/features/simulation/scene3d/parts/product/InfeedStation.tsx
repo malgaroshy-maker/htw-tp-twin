@@ -4,6 +4,7 @@ import { materials } from '../../core/materials';
 import { useMergedParts } from '../../core/useMergedParts';
 import type { StaticPart } from '../../core/merge';
 import { MACHINE_LAYOUT_3D, PRODUCT_SIZE_3D } from '../../../machineLayout';
+import { DIVIDER_ENTRY_X } from './groupingGeometry';
 
 const { productPath, deckHeights } = MACHINE_LAYOUT_3D;
 
@@ -23,7 +24,12 @@ const { productPath, deckHeights } = MACHINE_LAYOUT_3D;
  */
 const BELT_Y = deckHeights.products - 0.08;
 const BELT_START = productPath.infeedX - 1.6;
-const BELT_END = productPath.groupingX - 2.2;
+/**
+ * The belt hands over to the divider, so it ends at the divider's upstream face
+ * rather than at an offset from `groupingX` that happened to run 1.5 units *past*
+ * the divider and through its bed.
+ */
+const BELT_END = DIVIDER_ENTRY_X;
 const BELT_LEN = BELT_END - BELT_START;
 const BELT_MID = (BELT_START + BELT_END) / 2;
 

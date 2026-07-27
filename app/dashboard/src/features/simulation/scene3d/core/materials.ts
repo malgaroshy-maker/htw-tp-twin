@@ -79,9 +79,19 @@ function build() {
       emissive: new THREE.Color('#34D399'),
       emissiveIntensity: 0.6,
     }),
+    /** Owned by GlueStation, which drives its emissive. Do not reuse. */
     amberOn: std(PALETTE.actuatorBright, 0.2, 0.4, {
       emissive: new THREE.Color(PALETTE.actuatorBright),
       emissiveIntensity: 0.7,
+    }),
+    /**
+     * Static amber for parts that only need the colour. The divider arms used
+     * `amberOn`, whose emissive GlueStation rewrites every frame, so they lit up
+     * and dimmed in sympathy with the glue heads at the far end of the machine.
+     */
+    amberStatic: std(PALETTE.actuatorBright, 0.2, 0.4, {
+      emissive: new THREE.Color(PALETTE.actuatorBright),
+      emissiveIntensity: 0.3,
     }),
     rejectBox: std(PALETTE.reject, 0.06, 0.72, {
       emissive: new THREE.Color(PALETTE.rejectDark),
@@ -130,6 +140,16 @@ function build() {
     glueRail: std('#86EFAC', 0.16, 0.42, {
       emissive: new THREE.Color('#14532D'),
       emissiveIntensity: 0.04,
+    }),
+    /**
+     * The glue bead on the carton seals. Owned by FormedCarton, which brightens
+     * it as the seal sets — it shared `amberOn` with the glue nozzles, so the two
+     * components overwrote each other's emissive every frame and which one won
+     * depended on scene traversal order.
+     */
+    glueSeal: std(PALETTE.actuatorBright, 0.2, 0.4, {
+      emissive: new THREE.Color(PALETTE.actuatorBright),
+      emissiveIntensity: 0.1,
     }),
     /** Product slug instances — `opacity` is animated as the slug fades in/out. */
     slugProduct: std(PALETTE.product, 0.28, 0.28, {

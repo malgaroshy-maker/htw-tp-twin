@@ -2,7 +2,7 @@ import { memo, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import type { Group } from 'three';
 import { Box } from '../../core/primitives';
-import { getLaneZ3D } from '../../../machineLayout';
+import { MACHINE_LAYOUT_3D, getLaneZ3DReal } from '../../../machineLayout';
 import { damp, FOLLOW_LAMBDA } from '../../../animation/constants';
 import { DIVIDER_X } from './groupingGeometry';
 import { materials } from '../../core/materials';
@@ -12,9 +12,16 @@ import { useMergedParts } from '../../core/useMergedParts';
  * Divider that distributes the single-lane infeed across the transport lanes
  * (OI 5-9 item 1). The separator upstream creates the gap it swings into.
  *
+ * The carriage seeks the lane it is currently filling, so it must use the *same*
+ * lane table as the lanes themselves (`getLaneZ3DReal`). It used to use the
+ * superseded `getLaneZ3D`, whose span was four times wider, so the carriage
+ * travelled to Z positions no lane occupied.
+ *
  * NOTE (Phase 6d): the real unit also carries a separator, a width-adjustment
  * spindle with a hand wheel, and vertical side frames.
  */
+/** Bed top sits flush with the surface product rides on. */
+const BED_Y = MACHINE_LAYOUT_3D.deckHeights.products - 0.125;
 export const DividerModule = memo(function DividerModule({
   currentLane,
   rowCount,
@@ -26,7 +33,7 @@ export const DividerModule = memo(function DividerModule({
   gapClear: boolean;
 }) {
   const carriageRef = useRef<Group>(null);
-  const laneZ = useMemo(() => getLaneZ3D(rowCount), [rowCount]);
+  const laneZ = useMemo(() => getLaneZ3DReal(rowCount), [rowCount]);
 
   useFrame((_, delta) => {
     if (!carriageRef.current) return;
@@ -64,7 +71,7 @@ export const DividerModule = memo(function DividerModule({
   const mats = materials();
 
   return (
-    <group position={[DIVIDER_X, 3.22, 0]}>
+    <group position={[DIVIDER_X, BED_Y, 0]}>
       {statics.map((g) => (
         <mesh key={g.key} geometry={g.geometry} material={mats[g.mat]} receiveShadow />
       ))}
@@ -76,7 +83,7 @@ export const DividerModule = memo(function DividerModule({
       <group ref={carriageRef}>
         <Box mat="steelLight" pos={[0, 0.35, 0]} size={[1.2, 0.15, 1.4]} receiveShadow />
         {[-0.4, 0.4].map((z) => (
-          <Box key={`arm-${z}`} mat="amberOn" pos={[1.2, 0.35, z]} size={[2.4, 0.1, 0.05]} receiveShadow />
+          <Box key={`arm-${z}`} mat="amberStatic" pos={[1.2, 0.35, z]} size={[2.4, 0.1, 0.05]} receiveShadow />
         ))}
         <Box mat="pusherHead" pos={[-0.2, 0.55, 0]} size={[0.4, 0.3, 0.6]} receiveShadow />
       </group>

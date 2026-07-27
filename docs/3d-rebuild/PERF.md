@@ -476,3 +476,76 @@ The scene is still visibly flat and dark in `captures/3dsim-overview.png` — th
 Phase 5 lighting/material work, not yet started. Draw calls, shader program count and
 frame timings are not yet instrumented; `r3f-perf` and a `gl.info` probe land with
 Phase 2.
+
+## Station and component alignment audit
+
+Every station was re-checked against the zone table and against the stations it
+hands over to, on two questions: does it stand where the layout says, and is it
+driven by the right signal at the right moment. Fourteen defects, all of the same
+family — a hardcoded number that was correct before the format table (OI 2-23)
+pinned the product to 33 × 47 × 110 mm and the tray to 382 × 145 mm, and was
+never re-derived afterwards.
+
+### Two lane tables
+
+`getLaneZ3D` (span ±1.55, from the retired `laneSpread`) survived alongside
+`getLaneZ3DReal` (span ±0.375, from the 145 mm / 3 format pitch) and was still
+driving the **divider carriage**. The carriage sought lane centres four times
+further out than the lanes it was feeding. The lane **support rails** in the scene
+composition were on the same retired spread. `getLaneZ3D`, `laneSpread` and
+`productSize3D` are deleted; there is now one lane table.
+
+### Things that stood at product height, or did not
+
+`deckHeights.products` is the surface product stands on. Three components read it
+as something else:
+
+| Component | Was | Consequence |
+|---|---|---|
+| `ProductSlug` | instances centred *on* the deck | slug sank half its height into the deck the moment it left the lanes |
+| `GroupedLaneFill` lane belts | `deckHeights.high` | every product in the lanes floated 0.37 above its own belt |
+| `FormedCarton` | deck − 0.22 | pack rode *through* the chain carriers carrying it |
+| `ChainInfeed` chain loop | lower run at 3.13 | all five pusher plates swept underneath the formation without touching it |
+| transfer pusher plate | top face exactly at the deck | same — passed under the product it pushes |
+
+### Things that acted on empty air
+
+- **`SidePushers`** closed to z = ±1.25 against a formation ±0.56 wide.
+- **`GlueStation`** heads at ±1.55 and rails at ±2.08 against carton walls at
+  ±0.56 — the whole station stood a unit outboard of what it glues.
+- **`EdgeFlapFolders`** stood at x = 13.2 while the pack is between 10.2 and 12.1
+  during the fold window, so the blades closed and reopened before it arrived.
+  `FOLDER_X` is now derived by inverting the `packX` ramp over the fold window.
+- **`DividerModule`** stood 1.5 units *inside* the infeed belt, sharing space with
+  it. `DIVIDER_X` now comes from the grouping zone and the belt ends at the
+  divider's upstream face.
+- **The product clamp** sat at the lane entry, nine units from any product, and
+  was 1.48 deep — spanning all three lanes at once.
+- **The inner blank shaft** stood 0.8 downstream of `zones.blankWithdraw`, and the
+  hold-downs were positioned on where it used to be.
+
+### Motion
+
+- **`SidePushers`** applied the poll value straight to `position` during render,
+  so the guides stepped twice a second while everything around them glided. Now
+  damped in `useFrame` like the rest.
+- **`TransportChains`** counter-rotated: the upper chain scrolled −x while the
+  lower scrolled +x, though both present their working run to the same carton.
+  Its height adjustment also used a fixed `* 0.08` step, making the lift speed
+  frame-rate dependent — the one remaining instance of the bug `damp()` was
+  introduced to kill.
+- **`FormedCarton`** swerved 2.4 in Z on a reject *and* `RejectConveyor` drew the
+  diverted pack, so a reject put two packs on screen taking different routes. The
+  branch now owns the divert; the carton is tinted instead.
+
+### Shared-material collisions
+
+The registry's contract is that a dynamic-emissive material has exactly one
+owner. Two were being written by more than one component each frame, so which
+value survived depended on scene traversal order: `amberOn` (`GlueStation`
+nozzles vs `FormedCarton` seals vs the divider arms). Split into `amberOn` (glue
+only), `glueSeal` (carton) and `amberStatic` (divider).
+
+`EdgeFlapFolders` also built its torus blade in a `useMemo` and never disposed
+it — one leaked geometry per mount, of the exact kind the refcounted cache
+exists to prevent. Now a module-level constant.

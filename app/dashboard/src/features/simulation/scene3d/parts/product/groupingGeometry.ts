@@ -37,10 +37,22 @@ export function slotX(slot: number) {
 }
 
 /**
- * Where a newly divided product enters the lane.
+ * Where the divider stands.
  *
- * Sits just downstream of the divider carriage, so a product eases away from
- * the divider that placed it rather than appearing at the head of the lane.
+ * It has to sit *between* the infeed belt and the head of the lanes: it takes
+ * single-file product off the belt and places it into a lane. It used to be
+ * pinned at x = -12.3, which is 1.5 units inside the infeed belt — the divider
+ * bed and the belt occupied the same space, and the carriage arms reached into
+ * the belt rather than over the lanes. Deriving it from the grouping zone keeps
+ * the two stations from overlapping whatever the zone table says.
  */
-export const DIVIDER_X = -12.3;
-export const LANE_ENTRY_X = DIVIDER_X + 1.2;
+export const DIVIDER_X = zones.grouping.x - zones.grouping.width / 2 - 1.2;
+
+/**
+ * Where a newly divided product enters the lane: the upstream end of the
+ * grouping zone, just clear of the divider carriage.
+ */
+export const LANE_ENTRY_X = zones.grouping.x - zones.grouping.width / 2;
+
+/** Upstream face of the divider — the infeed belt has to stop short of this. */
+export const DIVIDER_ENTRY_X = DIVIDER_X - 1.4;

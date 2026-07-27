@@ -6,7 +6,7 @@ import type { Mesh } from 'three';
 import type { SimulatorState } from '../../hooks/simTypes';
 import { useMachineSceneModel } from './hooks/useMachineSceneModel';
 import type { MachineSceneModel } from './hooks/useMachineSceneModel';
-import { MACHINE_LAYOUT_3D } from './machineLayout';
+import { MACHINE_LAYOUT_3D, PRODUCT_SIZE_3D, TRAY_SIZE_3D, getLaneZ3DReal } from './machineLayout';
 import { SceneStats } from './scene3d/dev/SceneStats';
 import { PERF_ENABLED } from './scene3d/dev/perfFlag';
 import { acquireSceneAssets, releaseSceneAssets } from './scene3d/core/materials';
@@ -37,7 +37,6 @@ import { DividerModule } from './scene3d/parts/product/DividerModule';
 import { ProductSlug } from './scene3d/parts/product/ProductSlug';
 import { FormedCarton } from './scene3d/parts/transport/FormedCarton';
 import { ManualZoneHighlight, MaintenanceJogButton, FlowArrow } from './scene3d/parts/overlay/Overlays';
-import { lerp } from './scene3d/core/mathUtils';
 import { damp, FOLLOW_LAMBDA } from './animation/constants';
 import './simulation.css';
 
@@ -236,12 +235,21 @@ function MachineScene({
       {layerVisibility.product && (
         <group>
           <FlowArrow position={[-9.0, 0.09, -6.1]} length={11.0} active={phaseActive('GROUPING') || phaseActive('CAPTURED')} color="#10B981" />
-          {Array.from({ length: model.rowCount }).map((_, lane) => {
-            const z = lerp(-2.55, 2.55, model.rowCount === 1 ? 0.5 : lane / (model.rowCount - 1));
-            return (
-              <Box key={lane} mat="frame" pos={[zones.grouping.x, 2.55, z]} size={[zones.grouping.width - 0.2, 0.1, 0.08]} receiveShadow />
-            );
-          })}
+          {/*
+            Support rails under the lane belts. They were laid out on the retired
+            ±2.55 spread while the belts sit on the ±0.375 format pitch, so they
+            ran under nothing — and at y 2.55, half a metre below the belts they
+            support.
+          */}
+          {getLaneZ3DReal(model.rowCount).map((z, lane) => (
+            <Box
+              key={lane}
+              mat="frame"
+              pos={[zones.grouping.x, MACHINE_LAYOUT_3D.deckHeights.products - 0.14, z]}
+              size={[zones.grouping.width - 0.2, 0.1, 0.08]}
+              receiveShadow
+            />
+          ))}
           <InfeedStation
             running={model.machineState === 'RUNNING' || model.machineState === 'RUN_EMPTY'}
             minJamReached={model.groupedCount > 0}
@@ -254,10 +262,25 @@ function MachineScene({
             opacity={model.slugOpacity}
             rowCount={model.rowCount}
             colCount={model.colCount}
-            compression={model.slugCompression}
           />
           <SidePushers progress={model.sidePusherProgress} />
-          <Box ref={pusherRef} mat="steelMid" pos={[MACHINE_LAYOUT_3D.productPath.transferX - 2.4, 2.96, 0]} size={[0.12, 0.96, 3.4]} castShadow receiveShadow />
+          {/*
+            Transfer pusher plate. It sat at y 2.96 with a 0.96 height, so its top
+            face was exactly the deck the product stands on — it swept past
+            entirely underneath the formation it is supposed to push.
+          */}
+          <Box
+            ref={pusherRef}
+            mat="steelMid"
+            pos={[
+              MACHINE_LAYOUT_3D.productPath.transferX - 2.4,
+              MACHINE_LAYOUT_3D.deckHeights.products + PRODUCT_SIZE_3D[1] / 2,
+              0,
+            ]}
+            size={[0.12, PRODUCT_SIZE_3D[1] * 1.05, TRAY_SIZE_3D[1] + 0.3]}
+            castShadow
+            receiveShadow
+          />
           <ChainInfeed
             active={model.chainInfeedActive}
             progress={model.chainInfeedOffset}
@@ -290,7 +313,7 @@ function MachineScene({
             colCount={model.colCount}
           />
           <RejectConveyor
-            storedPositions={model.rejectConveyorPositions}
+            storedCount={model.rejectCount}
             active={model.faultCode === 'REJECT_BIN_FULL' || model.warningCode === 'REJECT_BIN_NEAR_FULL'}
             liveRejectActive={model.rejectActive && model.phase === 'DISCHARGE'}
             liveRejectX={model.visualProgress}

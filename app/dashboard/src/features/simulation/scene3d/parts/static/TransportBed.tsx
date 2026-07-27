@@ -17,11 +17,11 @@ const CAST = { castShadow: true, receiveShadow: true } as const;
  */
 const PARTS: StaticPart[] = [
   // Belt surface and slats
-  { mat: 'beltBlueDeep', size: [12.3, 0.035, 2.86], pos: [11.15, 3.0, 0], receiveShadow: true },
+  { mat: 'beltBlueDeep', size: [zones.mainTransport.width - 0.6, 0.035, 2.86], pos: [zones.mainTransport.x, 3.0, 0], receiveShadow: true },
   ...Array.from({ length: 8 }, (_, i) => ({
     mat: 'beltBlue' as const,
     size: [0.82, 0.012, 2.7] as [number, number, number],
-    pos: [6.4 + i * 1.46, 3.03, 0] as [number, number, number],
+    pos: [zones.mainTransport.x - zones.mainTransport.width / 2 + 1.1 + i * 1.46, 3.03, 0] as [number, number, number],
     receiveShadow: true,
   })),
 
@@ -40,7 +40,7 @@ const PARTS: StaticPart[] = [
   ].map(({ z, rot }) => ({
     mat: 'beltGreen' as const,
     size: [0.18, 1.1, 0.18] as [number, number, number],
-    pos: [12.0, 3.06, z] as [number, number, number],
+    pos: [zones.mainTransport.x + 2.4, 3.06, z] as [number, number, number],
     rot: [0, 0, rot] as [number, number, number],
     ...CAST,
   })),

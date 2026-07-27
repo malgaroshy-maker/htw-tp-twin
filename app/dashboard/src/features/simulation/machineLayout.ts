@@ -61,7 +61,10 @@ export const MACHINE_LAYOUT_3D = {
     transfer: { x: 3.3, z: 0, width: 4.0, depth: 5.4 },
     mainTransport: { x: 9.4, z: 0, width: 13.8, depth: 4.0 },
     discharge: { x: 16.4, z: 0, width: 3.6, depth: 4.0 },
-    rejectConveyor: { x: 17.0, z: 3.55, width: 5.6, depth: 1.6 },
+    // Branches ACROSS the machine from the discharge (OI 5-56), so its long
+    // axis is Z. It used to be described as running parallel at x=17, which
+    // put it past the end of the frame at 18.25.
+    rejectBranch: { x: 16.4, z: 3.6, width: 2.4, depth: 4.9 },
   },
   blankPath: {
     magazineStartX: -13.4,
@@ -94,8 +97,6 @@ export const MACHINE_LAYOUT_3D = {
     guides: 3.9,
     glue: 4.46,
   },
-  laneSpread: 1.55,
-  productSize3D: 0.46,
   productScale2D: 0.82,
 };
 
@@ -148,6 +149,11 @@ export const TRAY_SIZE_3D: [number, number] = [
  * the cb 12 format has, which is consistent with the drawings depicting a wider
  * format variant — so lane *count* stays driven by `cfg.grid_rows` and only the
  * pitch is pinned to the manual.
+ *
+ * This is the *only* lane-Z function. A second one built on the old
+ * `laneSpread` survived alongside it and was still driving the divider carriage,
+ * so the divider sought lanes on a 3.1-unit span while the lanes themselves sat
+ * on a 0.75-unit one — it swung right past every lane it was feeding.
  */
 export function getLaneZ3DReal(rows: number) {
   const pitch = REAL_MM.lanePitch * MM;
@@ -164,12 +170,5 @@ export function getLaneCenters2D(rows: number) {
   const spread = MACHINE_LAYOUT_2D.grouping.laneSpread;
   return Array.from({ length: rows }, (_, lane) =>
     lerp(center - spread, center + spread, rows === 1 ? 0.5 : lane / (rows - 1))
-  );
-}
-
-export function getLaneZ3D(rows: number) {
-  const spread = MACHINE_LAYOUT_3D.laneSpread;
-  return Array.from({ length: rows }, (_, lane) =>
-    lerp(-spread, spread, rows === 1 ? 0.5 : lane / (rows - 1))
   );
 }
