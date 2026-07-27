@@ -90,16 +90,27 @@ async function main() {
   await page.screenshot({ path: file });
   console.log('wrote', file);
 
-  // IDLE hides every animated part (slug, formed carton, flat blank), so a
-  // running capture is the only one that actually exercises them.
+  // Get to a genuinely running machine. A session reset alone is NOT enough:
+  // it leaves latched faults in place (REJECT_BIN_FULL, blanks exhausted), so
+  // `start` is refused and every "running" capture silently shows an IDLE,
+  // FAULTED machine with none of the animated parts visible.
+  const cmd = async (action) =>
+    page.evaluate(async (a) => {
+      await fetch('http://localhost:8000/command', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: a }),
+      });
+    }, action);
+
   await page.evaluate(async () => {
-    await fetch('http://localhost:8000/command', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'start' }),
-    });
+    await fetch('http://localhost:8000/session/reset', { method: 'POST' });
   });
-  for (let i = 0; i < 40; i += 1) {
+  for (const action of ['clear_rejects', 'refill_blanks', 'reset', 'start']) {
+    await cmd(action);
+  }
+
+  for (let i = 0; i < 26; i += 1) {
     await page.evaluate(async () => {
       await fetch('http://localhost:8000/tick', {
         method: 'POST',

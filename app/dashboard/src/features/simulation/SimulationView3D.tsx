@@ -16,9 +16,10 @@ import { MachineFrame } from './scene3d/parts/static/MachineFrame';
 import { TrayStation } from './scene3d/parts/static/TrayStation';
 import { TransportBed } from './scene3d/parts/static/TransportBed';
 import { GlueStation } from './scene3d/parts/transport/GlueStation';
+import { TransportChains } from './scene3d/parts/transport/TransportChains';
+import { EdgeFlapFolders } from './scene3d/parts/transport/EdgeFlapFolders';
 import { SensorPost } from './scene3d/parts/sensors/SensorPost';
 import { RejectConveyor } from './scene3d/parts/transport/RejectConveyor';
-import { LugTrack } from './scene3d/parts/transport/LugTrack';
 import { ChainInfeed } from './scene3d/parts/product/ChainInfeed';
 import { SidePushers } from './scene3d/parts/product/SidePushers';
 import { GroupedLaneFill } from './scene3d/parts/product/GroupedLaneFill';
@@ -232,7 +233,11 @@ function MachineScene({
           <FlowArrow position={[8.5, 0.09, -5.9]} length={13.4} active={phaseActive('PACKING') || phaseActive('DISCHARGE')} color="#38BDF8" />
           <TransportBed />
           <GlueStation glueActive={model.glueActive} guideActive={model.guideActive} />
-          <LugTrack active={model.machineState === 'RUNNING' || model.machineState === 'RUN_EMPTY'} />
+          <TransportChains
+            running={model.machineState === 'RUNNING' || model.machineState === 'RUN_EMPTY'}
+            productHeight={model.packVisible ? 1 : 0}
+          />
+          <EdgeFlapFolders formProgress={model.packFormProgress} active={model.packVisible} />
           <FormedCarton
             visible={model.packVisible}
             x={model.packX}
