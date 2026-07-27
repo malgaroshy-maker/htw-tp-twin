@@ -288,6 +288,54 @@ Each affected component carries a `NOTE (Phase 6x)` comment naming its figure.
 
 Not started. 5 `<Html>` overlays remain in scene components plus 11 `ZoneLabel`s.
 
+## Draw-call optimisation pass
+
+### The measurement that reframed the problem
+
+Adding mesh and shadow-caster counts to the probe showed that **draw calls track
+visible mesh count exactly 1:1** — 169 meshes, 169 calls. The shadow pass was not
+the multiplier the plan assumed. So the target is a *mesh-count* problem, not a
+shadow problem.
+
+| Step | meshes / calls | casters |
+|---|---|---|
+| before this pass | 169 | 140 |
+| instancing (lane fill, flat blank, glue nozzles, stored rejects) | 133 | 53 |
+| merging divider statics, flow arrows | 128 | 55 |
+| consolidating near-duplicate steel materials | **114** | 44 |
+
+### Why merging alone gave so little
+
+Merging only pays when many parts **share a material** — it produces one mesh per
+(material, shadow-flags) bucket. `MachineFrame` worked because ~60 parts spanned
+~8 materials. A station with 8 parts across 5 materials merges to 5 meshes and
+saves almost nothing.
+
+The registry had accumulated perceptually near-identical stainless tones —
+`cover`/`steelLight`, `rail`/`steelMid`, `coverDark`/`steelDark`,
+`deckPlate`/`frame`, `frameDarkMatte`/`frameDark` — differing by 0.02–0.06 in
+roughness. Collapsing those five pairs merged the buckets and took 128 → 114 on
+its own, with no visible difference in the captures.
+
+### The ≤60 target is not met, and the estimate was wrong
+
+**114 draw calls, down from 235 — a 51% reduction, absorbing the ~38-call cost of
+image-based lighting along the way.** The ≤60 figure in `PLAN.md` was set before
+any measurement, on the assumption that programs were the bottleneck and that the
+shadow pass doubled calls. Both were wrong.
+
+What is left is mostly irreducible without changing what the scene shows:
+
+- ~34 calls of merged static structure — already one mesh per material
+- ~10 `FormedCarton` panels that animate independently and cannot merge
+- per-station detail (stopper/terminal, suction arm, side pushers, sensors) that
+  is animated or state-driven
+
+Reaching 60 would need the material palette collapsed to ~6, which would flatten
+the visual differentiation the lighting work exists to show. A realistic floor
+for this scene, keeping its current fidelity, is **80–90**. The ≤60 target is
+withdrawn as unfounded rather than quietly carried forward.
+
 ## Phase 3 — motion smoothing (partial)
 
 `animation/constants.ts` now owns `SNAPSHOT_BLEND_MS` and `VISUAL_SPEED_SCALE`, and the

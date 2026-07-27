@@ -60,6 +60,8 @@ async function readSceneStats(page, label) {
       `geometries ${String(stats.geometries).padStart(4)}  ` +
       `textures ${String(stats.textures).padStart(3)}  ` +
       `tris ${String(stats.triangles).padStart(6)}  ` +
+      `meshes ${String(stats.meshes).padStart(3)}  ` +
+      `casters ${String(stats.shadowCasters).padStart(3)}  ` +
       `fps ${String(stats.fps).padStart(3)}`
   );
   return stats;

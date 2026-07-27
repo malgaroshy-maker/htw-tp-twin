@@ -102,7 +102,7 @@ function buildFrame(z: number): StaticPart[] {
     const dy = b.y - a.y;
     const len = Math.hypot(dx, dy);
     parts.push({
-      mat: 'cover',
+      mat: 'steelLight',
       size: [len + 0.03, 0.16, 0.1],
       pos: [(a.x + b.x) / 2, (a.y + b.y) / 2, z],
       rot: [0, 0, Math.atan2(dy, dx)],
@@ -127,7 +127,7 @@ const STATIC_PARTS: StaticPart[] = [
   // Frame feet
   ...[-1, 1].flatMap((sign) =>
     [-2.1, 2.1].map((dx) => ({
-      mat: 'cover' as const,
+      mat: 'steelLight' as const,
       size: [0.14, 1.0, 0.14] as [number, number, number],
       pos: [TRANSFER.x - 0.15 + dx, 3.55, sign * (BAR_HALF_Z + 0.12)] as [number, number, number],
       castShadow: true,
@@ -144,7 +144,7 @@ const STATIC_PARTS: StaticPart[] = [
   })),
   // Chain-infeed product guides (item 2)
   ...[-1.55, -0.52, 0.52, 1.55].map((z) => ({
-    mat: 'rail' as const,
+    mat: 'steelMid' as const,
     size: [4.36, 0.05, 0.06] as [number, number, number],
     pos: [TRANSFER.x + 0.1, 3.19, z] as [number, number, number],
     castShadow: true,

@@ -22,13 +22,13 @@ export const SidePushers = memo(function SidePushers({ progress }: { progress: n
 
   return (
     <group>
-      <Box mat="cover" pos={[x, 3.28, 2.9]} size={[0.12, 1.24, 0.12]} castShadow receiveShadow />
-      <Box mat="cover" pos={[x, 3.28, -2.9]} size={[0.12, 1.24, 0.12]} castShadow receiveShadow />
+      <Box mat="steelLight" pos={[x, 3.28, 2.9]} size={[0.12, 1.24, 0.12]} receiveShadow />
+      <Box mat="steelLight" pos={[x, 3.28, -2.9]} size={[0.12, 1.24, 0.12]} receiveShadow />
 
       {[upperZ, lowerZ].map((z, i) => (
         <group key={i} position={[x, 3.28, z]}>
-          <Box mat="pusherBeam" size={[beamLength, 0.12, 0.12]} castShadow receiveShadow />
-          <Box mat="pusherHead" pos={[beamLength / 2 - 0.14, -0.05, 0]} size={[0.28, 0.28, 0.18]} castShadow receiveShadow />
+          <Box mat="pusherBeam" size={[beamLength, 0.12, 0.12]} receiveShadow />
+          <Box mat="pusherHead" pos={[beamLength / 2 - 0.14, -0.05, 0]} size={[0.28, 0.28, 0.18]} receiveShadow />
         </group>
       ))}
     </group>

@@ -23,7 +23,7 @@ const RECEIVE: Pick<StaticPart, 'receiveShadow'> = { receiveShadow: true };
 const STATIC_PARTS: StaticPart[] = [
   // Base shell
   {
-    mat: 'frameDarkMatte',
+    mat: 'frameDark',
     size: [frame.base.width, frame.base.height, frame.base.depth],
     pos: [frame.base.x, frame.base.y, frame.base.z],
     radius: 0.25,
@@ -56,25 +56,25 @@ const STATIC_PARTS: StaticPart[] = [
 
   // Decks
   {
-    mat: 'deckPlate',
+    mat: 'frame',
     size: [frame.lowDeck.width, frame.lowDeck.height, frame.lowDeck.depth],
     pos: [frame.lowDeck.x, frame.lowDeck.y, frame.lowDeck.z],
     ...CAST,
   },
   {
-    mat: 'deckPlate',
+    mat: 'frame',
     size: [frame.highGroupingDeck.width, frame.highGroupingDeck.height, frame.highGroupingDeck.depth],
     pos: [frame.highGroupingDeck.x, frame.highGroupingDeck.y, frame.highGroupingDeck.z],
     ...CAST,
   },
   {
-    mat: 'steelCharcoal',
+    mat: 'steelSlate',
     size: [frame.highTransferDeck.width, frame.highTransferDeck.height, frame.highTransferDeck.depth],
     pos: [frame.highTransferDeck.x, frame.highTransferDeck.y, frame.highTransferDeck.z],
     ...CAST,
   },
   {
-    mat: 'deckPlate',
+    mat: 'frame',
     size: [frame.highTransportDeck.width, frame.highTransportDeck.height, frame.highTransportDeck.depth],
     pos: [frame.highTransportDeck.x, frame.highTransportDeck.y, frame.highTransportDeck.z],
     ...CAST,
@@ -90,13 +90,13 @@ const STATIC_PARTS: StaticPart[] = [
 
   // Zone guards
   ...[3.0, -3.0].map((z) => ({
-    mat: 'coverDark' as const,
+    mat: 'steelDark' as const,
     size: [zones.grouping.width - 0.6, 0.72, 0.14] as [number, number, number],
     pos: [zones.grouping.x, 3.34, z] as [number, number, number],
     ...CAST,
   })),
   ...[2.2, -2.2].map((z) => ({
-    mat: 'coverDark' as const,
+    mat: 'steelDark' as const,
     size: [zones.mainTransport.width - 2.2, 0.82, 0.14] as [number, number, number],
     pos: [zones.mainTransport.x + 1.2, 3.44, z] as [number, number, number],
     ...CAST,
@@ -135,8 +135,8 @@ const STATIC_PARTS: StaticPart[] = [
   },
 
   // Divider bed and transfer bed
-  { mat: 'deckPlate', size: [1.3, 0.22, 5.8], pos: [-10.8, 2.88, 0], ...CAST },
-  { mat: 'deckPlate', size: [0.28, 0.34, 4.4], pos: [1.45, 2.88, 0], ...CAST },
+  { mat: 'frame', size: [1.3, 0.22, 5.8], pos: [-10.8, 2.88, 0], ...CAST },
+  { mat: 'frame', size: [0.28, 0.34, 4.4], pos: [1.45, 2.88, 0], ...CAST },
   ...[-1.5, 1.5].map((z) => ({
     mat: 'frameDark' as const,
     size: [4.8, 0.12, 0.3] as [number, number, number],

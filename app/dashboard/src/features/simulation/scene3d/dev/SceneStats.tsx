@@ -10,6 +10,8 @@ declare global {
       geometries: number;
       textures: number;
       fps: number;
+      meshes: number;
+      shadowCasters: number;
     };
   }
 }
@@ -25,7 +27,7 @@ declare global {
  * reflects software rasterisation and should not be quoted as a perf figure.
  */
 export function SceneStats() {
-  const { gl } = useThree();
+  const { gl, scene } = useThree();
   const frames = useRef(0);
   const windowStart = useRef(0);
 
@@ -40,7 +42,18 @@ export function SceneStats() {
     const elapsed = now - windowStart.current;
     if (elapsed < 1000) return;
 
+    let meshes = 0;
+    let shadowCasters = 0;
+    scene.traverse((o) => {
+      const m = o as { isMesh?: boolean; visible?: boolean; castShadow?: boolean };
+      if (!m.isMesh || !m.visible) return;
+      meshes += 1;
+      if (m.castShadow) shadowCasters += 1;
+    });
+
     window.__sceneStats = {
+      meshes,
+      shadowCasters,
       calls: gl.info.render.calls,
       triangles: gl.info.render.triangles,
       programs: gl.info.programs?.length ?? 0,

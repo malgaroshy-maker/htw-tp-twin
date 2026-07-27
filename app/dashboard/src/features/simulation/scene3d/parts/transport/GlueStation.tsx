@@ -1,7 +1,11 @@
-import { memo } from 'react';
+import { memo, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Box, Cyl } from '../../core/primitives';
+import * as THREE from 'three';
+import { Box } from '../../core/primitives';
+import { geometries } from '../../core/geometries';
 import { materials } from '../../core/materials';
+import { mergeStaticParts } from '../../core/merge';
+import type { StaticPart } from '../../core/merge';
 import { MACHINE_LAYOUT_3D } from '../../../machineLayout';
 
 const { deckHeights } = MACHINE_LAYOUT_3D;
@@ -32,7 +36,38 @@ export const GlueStation = memo(function GlueStation({
   glueActive: boolean;
   guideActive: boolean;
 }) {
+  const nozzleRef = useRef<THREE.InstancedMesh>(null);
+  const dummy = useMemo(() => new THREE.Object3D(), []);
+  const placed = useRef(false);
+
+  // Applicator bodies never move; only the nozzle emissive changes.
+  const bodies = useMemo(
+    () =>
+      mergeStaticParts(
+        GLUE_HEADS.map(([x, z]) => ({
+          mat: 'steelDark' as const,
+          size: [0.3, 0.34, 0.3] as [number, number, number],
+          pos: [x, deckHeights.glue + 0.42, z] as [number, number, number],
+          castShadow: true,
+          receiveShadow: true,
+        })) satisfies StaticPart[]
+      ),
+    []
+  );
+
   useFrame(() => {
+    const nozzles = nozzleRef.current;
+    if (nozzles && !placed.current) {
+      placed.current = true;
+      GLUE_HEADS.forEach(([x, z], i) => {
+        dummy.position.set(x, deckHeights.glue, z);
+        dummy.scale.set(0.24, 0.55, 0.24);
+        dummy.updateMatrix();
+        nozzles.setMatrixAt(i, dummy.matrix);
+      });
+      nozzles.instanceMatrix.needsUpdate = true;
+    }
+
     const m = materials();
     m.glueRail.emissiveIntensity = glueActive ? 0.14 : 0.04;
     m.clampBar.emissiveIntensity = guideActive ? 0.08 : 0.02;
@@ -56,11 +91,13 @@ export const GlueStation = memo(function GlueStation({
         times). Three on the near rail, two on the far one, staggered along
         travel as in the CAD detail.
       */}
-      {GLUE_HEADS.map(([x, z], i) => (
-        <group key={i} position={[x, deckHeights.glue, z]}>
-          <Cyl mat="amberOn" size={[0.24, 0.55, 0.24]} castShadow receiveShadow />
-          <Box mat="steelDark" pos={[0, 0.42, 0]} size={[0.3, 0.34, 0.3]} castShadow receiveShadow />
-        </group>
+      <instancedMesh
+        ref={nozzleRef}
+        args={[geometries().cylinder, materials().amberOn, GLUE_HEADS.length]}
+        castShadow
+      />
+      {bodies.map((g) => (
+        <mesh key={g.key} geometry={g.geometry} material={materials()[g.mat]} castShadow receiveShadow />
       ))}
     </group>
   );

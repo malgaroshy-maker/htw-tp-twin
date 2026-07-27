@@ -72,13 +72,14 @@ Four problems, all confirmed with the user:
 | `/state` polls on Overview | 4.0 req/s (2 loops) | 2.0 req/s (1 loop) |
 | `SimulationView3D.tsx` | 1427 lines | 358 lines |
 | Live geometries | 235 | 48 |
-| Draw calls | 235 | 134 |
+| Draw calls | 235 | 114 |
 | Dead SVG components | 13 | 0 |
 
-Draw calls fell 32% while also absorbing the ~38-call cost of image-based lighting, so
-merging itself removed well over 100. The plan's ≤60 target is **not** met: the shadow
-pass redraws every shadow-casting mesh, and several state-driven components are still
-one mesh per element. See `docs/3d-rebuild/PERF.md`.
+Draw calls fell 51% while also absorbing the ~38-call cost of image-based lighting.
+The plan's ≤60 target is **not** met and has been withdrawn as unfounded — it was set
+before measurement, assuming shader programs were the bottleneck and that the shadow
+pass doubled calls. Neither is true: draw calls track visible mesh count 1:1. A
+realistic floor at current fidelity is 80–90. See `docs/3d-rebuild/PERF.md`.
 
 ### Bugs fixed during the rebuild
 

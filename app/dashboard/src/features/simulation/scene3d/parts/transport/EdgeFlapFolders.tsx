@@ -63,7 +63,7 @@ export const EdgeFlapFolders = memo(function EdgeFlapFolders({
       ].map(({ ref, z, spin }, i) => (
         <group key={i} position={[0, 0, z]} rotation={[0, spin, 0]}>
           {/* Pivot housing */}
-          <mesh castShadow receiveShadow>
+          <mesh receiveShadow>
             <cylinderGeometry args={[0.09, 0.09, 0.26, 12]} />
             <primitive object={mats.steelDark} attach="material" />
           </mesh>
@@ -74,7 +74,6 @@ export const EdgeFlapFolders = memo(function EdgeFlapFolders({
               material={mats.rubberBlack}
               rotation={[0, Math.PI / 2, Math.PI * 0.2]}
               position={[0, 0, 0]}
-              castShadow
             />
           </group>
         </group>

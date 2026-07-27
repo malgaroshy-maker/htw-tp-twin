@@ -1,4 +1,7 @@
-import { memo, useMemo } from 'react';
+import { memo, useMemo, useRef } from 'react';
+import { useFrame } from '@react-three/fiber';
+import * as THREE from 'three';
+import { geometries } from '../../core/geometries';
 import { Html } from '@react-three/drei';
 import { Box } from '../../core/primitives';
 import { materials } from '../../core/materials';
@@ -16,6 +19,7 @@ const REJECT = MACHINE_LAYOUT_3D.zones.rejectConveyor;
  * head of the track; the max-jam sensor watches the accumulation.
  */
 
+const MAX_STORED = 4;
 const ROLLER_COUNT = 12;
 const ROLLER_PITCH = 0.46;
 
@@ -42,7 +46,7 @@ const TRACK_PARTS: StaticPart[] = [
   })),
   // Side rails
   ...[-1, 1].map((sign) => ({
-    mat: 'coverDark' as const,
+    mat: 'steelDark' as const,
     size: [REJECT.width, 0.2, 0.07] as [number, number, number],
     pos: [REJECT.x, 1.06, REJECT.z + sign * (REJECT.depth / 2 + 0.04)] as [number, number, number],
     castShadow: true,
@@ -76,6 +80,26 @@ export const RejectConveyor = memo(function RejectConveyor({
 }) {
   const track = useMemo(() => mergeStaticParts(TRACK_PARTS), []);
   const mats = materials();
+  const storedRef = useRef<THREE.InstancedMesh>(null);
+  const dummy = useMemo(() => new THREE.Object3D(), []);
+  const lastStored = useRef('');
+
+  useFrame(() => {
+    const mesh = storedRef.current;
+    if (!mesh) return;
+    const key = storedPositions.join(',');
+    if (key === lastStored.current) return;
+    lastStored.current = key;
+
+    storedPositions.slice(0, MAX_STORED).forEach((x, i) => {
+      dummy.position.set(x, 1.14, REJECT.z);
+      dummy.scale.set(1.78, 0.3, 1.06);
+      dummy.updateMatrix();
+      mesh.setMatrixAt(i, dummy.matrix);
+    });
+    mesh.count = Math.min(storedPositions.length, MAX_STORED);
+    mesh.instanceMatrix.needsUpdate = true;
+  });
 
   return (
     <group>
@@ -93,13 +117,12 @@ export const RejectConveyor = memo(function RejectConveyor({
       <Box mat="rubberBlack" pos={[REJECT.x - 3.0, 1.12, REJECT.z]} size={[0.16, 0.28, REJECT.depth]} castShadow receiveShadow />
       <Box mat={active ? 'rejectBox' : 'sensorOn'} pos={[REJECT.x - 3.0, 1.42, REJECT.z + 0.6]} size={[0.16, 0.16, 0.16]} castShadow />
 
-      {/* Accumulated rejects */}
-      {storedPositions.map((xPosition, index) => (
-        <group key={index} position={[xPosition, 1.14, REJECT.z]}>
-          <Box mat={active ? 'rejectBoxDark' : 'cartonBase'} size={[1.78, 0.3, 1.06]} castShadow receiveShadow />
-          <Box mat="cartonFold" pos={[0, 0.38, 0]} size={[1.54, 0.03, 0.92]} castShadow receiveShadow />
-        </group>
-      ))}
+      {/* Accumulated rejects, instanced -- up to three boxes of two meshes each */}
+      <instancedMesh
+        ref={storedRef}
+        args={[geometries().box, active ? mats.rejectBoxDark : mats.cartonBase, MAX_STORED]}
+        castShadow
+      />
 
       {/* The one currently being diverted */}
       {liveRejectActive && (

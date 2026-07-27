@@ -17,12 +17,11 @@ export const SensorPost = memo(function SensorPost({
 }) {
   return (
     <group position={position}>
-      <Box mat="steelDark" size={[0.18, 1.1, 0.18]} castShadow receiveShadow />
+      <Box mat="steelDark" size={[0.18, 1.1, 0.18]} receiveShadow />
       <Box
         mat={active ? 'sensorOn' : 'sensorOff'}
         pos={[0, 0.55, 0]}
         size={[0.45, 0.36, 0.28]}
-        castShadow
         receiveShadow
       />
       <Html position={[0, 1.2, 0]} center scale={0.02} className="pointer-events-none whitespace-nowrap">

@@ -63,8 +63,8 @@ export const SuctionArm = memo(function SuctionArm({
   return (
     <group ref={armRef} position={[SHAFT_PICK.x - 1.8, TOP_Y, z]}>
       {/* Beam and vertical carrier */}
-      <Box mat="steelMid" size={[4.2, 0.16, 0.16]} castShadow receiveShadow />
-      <Box mat="steelLight" pos={[1.8, -0.48, 0]} size={[0.12, 0.86, 0.12]} castShadow receiveShadow />
+      <Box mat="steelMid" size={[4.2, 0.16, 0.16]} receiveShadow />
+      <Box mat="steelLight" pos={[1.8, -0.48, 0]} size={[0.12, 0.86, 0.12]} receiveShadow />
 
       {/* Vacuum cups */}
       {[-0.4, 0, 0.4].map((cupZ) => (
@@ -73,7 +73,6 @@ export const SuctionArm = memo(function SuctionArm({
           mat="suctionCup"
           pos={[1.8, -CUP_DROP, cupZ]}
           size={[0.24, 0.16, 0.24]}
-          castShadow
           receiveShadow
         />
       ))}
@@ -84,7 +83,6 @@ export const SuctionArm = memo(function SuctionArm({
         mat="boardCream"
         pos={[1.8, -CUP_DROP - 0.06, 0]}
         size={[3.1, 0.04, 2.0]}
-        castShadow
         receiveShadow
       />
     </group>

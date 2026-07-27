@@ -69,7 +69,6 @@ export const InnerMagazine = memo(function InnerMagazine({
           mat="steelLight"
           pos={[x, shaftMidY, z]}
           size={[0.09, shaftHeight, 0.09]}
-          castShadow
           receiveShadow
         />
       ))}
@@ -81,7 +80,6 @@ export const InnerMagazine = memo(function InnerMagazine({
           mat="guardSmoke"
           pos={[0, shaftMidY, z]}
           size={[BLANK_X, shaftHeight, 0.03]}
-          castShadow
         />
       ))}
 
@@ -89,7 +87,6 @@ export const InnerMagazine = memo(function InnerMagazine({
       <instancedMesh
         ref={stackRef}
         args={[geometries().box, materials().boardCream, MAX_SHEETS]}
-        castShadow
         receiveShadow
       />
 
@@ -98,7 +95,6 @@ export const InnerMagazine = memo(function InnerMagazine({
         mat={lowLevel ? 'rejectBox' : 'sensorOn'}
         pos={[BLANK_X / 2 + 0.16, MOUTH_Y + 0.18, 0]}
         size={[0.16, 0.18, 0.18]}
-        castShadow
       />
     </group>
   );

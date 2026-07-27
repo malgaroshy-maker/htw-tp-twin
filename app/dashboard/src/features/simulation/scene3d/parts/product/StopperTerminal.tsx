@@ -64,14 +64,13 @@ export const StopperTerminal = memo(function StopperTerminal({
       {/* Overhead carrier beams the blades hang from */}
       {[STOPPER_X, TERMINAL_X].map((x) => (
         <group key={x}>
-          <Box mat="cover" pos={[x, BLADE_UP + 0.5, 0]} size={[0.12, 0.12, TRAY_Z + 0.9]} castShadow receiveShadow />
+          <Box mat="steelLight" pos={[x, BLADE_UP + 0.5, 0]} size={[0.12, 0.12, TRAY_Z + 0.9]} receiveShadow />
           {[-1, 1].map((sign) => (
             <Box
               key={sign}
-              mat="cover"
+              mat="steelLight"
               pos={[x, BLADE_UP + 0.16, sign * (TRAY_Z / 2 + 0.45)]}
               size={[0.1, 0.8, 0.1]}
-              castShadow
               receiveShadow
             />
           ))}
@@ -84,7 +83,6 @@ export const StopperTerminal = memo(function StopperTerminal({
         mat={stopperClosed ? 'pusherHead' : 'steelLight'}
         pos={[STOPPER_X, BLADE_UP, 0]}
         size={[0.07, 0.55, TRAY_Z + 0.1]}
-        castShadow
         receiveShadow
       />
 
@@ -94,7 +92,6 @@ export const StopperTerminal = memo(function StopperTerminal({
         mat={terminalClosed ? 'pusherHead' : 'steelLight'}
         pos={[TERMINAL_X, BLADE_UP, 0]}
         size={[0.07, 0.55, TRAY_Z + 0.1]}
-        castShadow
         receiveShadow
       />
 
@@ -103,13 +100,11 @@ export const StopperTerminal = memo(function StopperTerminal({
         mat={stopperClosed ? 'ledGreenOn' : 'sensorOff'}
         pos={[STOPPER_X, BLADE_UP + 0.72, TRAY_Z / 2 + 0.45]}
         size={[0.14, 0.14, 0.14]}
-        castShadow
       />
       <Box
         mat={terminalClosed ? 'ledGreenOn' : 'sensorOff'}
         pos={[TERMINAL_X, BLADE_UP + 0.72, TRAY_Z / 2 + 0.45]}
         size={[0.14, 0.14, 0.14]}
-        castShadow
       />
     </group>
   );

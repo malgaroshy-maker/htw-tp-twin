@@ -1,5 +1,6 @@
 import { memo, useState } from 'react';
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { Html } from '@react-three/drei';
 import { geometries } from '../../core/geometries';
 
@@ -120,6 +121,28 @@ export const ZoneLabel = memo(function ZoneLabel({
   );
 });
 
+/**
+ * Flow arrows are ground decals, cached by length so the six of them share
+ * geometry. Shaft and head are merged into one buffer: two draw calls per arrow
+ * was 12 across the scene, and in this scene draw calls track mesh count 1:1.
+ */
+const arrowCache = new Map<number, THREE.BufferGeometry>();
+function arrowGeometry(length: number) {
+  let geo = arrowCache.get(length);
+  if (!geo) {
+    const shaft = new THREE.PlaneGeometry(length, 0.24);
+    const head = new THREE.ConeGeometry(0.28, 0.62, 3);
+    head.rotateZ(-Math.PI / 2);
+    head.rotateX(Math.PI / 2);
+    head.translate(length / 2, 0, 0.01);
+    geo = mergeGeometries([shaft, head], false) ?? shaft;
+    shaft.dispose();
+    head.dispose();
+    arrowCache.set(length, geo);
+  }
+  return geo;
+}
+
 export const FlowArrow = memo(function FlowArrow({
   position,
   length,
@@ -134,14 +157,12 @@ export const FlowArrow = memo(function FlowArrow({
   rotationY?: number;
 }) {
   return (
-    <group position={position} rotation={[0, rotationY, 0]}>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} geometry={geometries().plane} scale={[length, 0.24, 1]}>
-        <meshBasicMaterial color={color} transparent opacity={active ? 0.34 : 0.12} />
-      </mesh>
-      <mesh position={[length / 2, 0.01, 0]} rotation={[-Math.PI / 2, 0, -Math.PI / 2]}>
-        <coneGeometry args={[0.28, 0.62, 3]} />
-        <meshBasicMaterial color={color} transparent opacity={active ? 0.6 : 0.16} />
-      </mesh>
-    </group>
+    <mesh
+      position={position}
+      rotation={[-Math.PI / 2, 0, -rotationY]}
+      geometry={arrowGeometry(length)}
+    >
+      <meshBasicMaterial color={color} transparent opacity={active ? 0.34 : 0.12} />
+    </mesh>
   );
 });

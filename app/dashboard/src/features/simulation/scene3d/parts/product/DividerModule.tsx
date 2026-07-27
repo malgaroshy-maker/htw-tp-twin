@@ -1,9 +1,11 @@
 import { memo, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import type { Group } from 'three';
-import { Box, Cyl } from '../../core/primitives';
+import { Box } from '../../core/primitives';
 import { getLaneZ3D } from '../../../machineLayout';
 import { damp, FOLLOW_LAMBDA } from '../../../animation/constants';
+import { materials } from '../../core/materials';
+import { mergeStaticParts } from '../../core/merge';
 
 /**
  * Divider that distributes the single-lane infeed across the transport lanes
@@ -31,42 +33,55 @@ export const DividerModule = memo(function DividerModule({
     carriageRef.current.position.z = damp(carriageRef.current.position.z, targetZ, FOLLOW_LAMBDA * 1.4, delta);
   });
 
+  // Everything except the lane-seeking carriage is fixed, so it is baked into
+  // one buffer per material instead of ~9 separate meshes.
+  const statics = useMemo(
+    () =>
+      mergeStaticParts([
+        { mat: 'frameDark', size: [2.0, 0.05, 4.2], pos: [0, 0.1, 0], receiveShadow: true },
+        ...[-0.4, 0.4].map((x) => ({
+          mat: 'steelMid' as const,
+          shape: 'cylinder' as const,
+          size: [0.1, 4.0, 0.1] as [number, number, number],
+          pos: [x, 0.25, 0] as [number, number, number],
+          rot: [Math.PI / 2, 0, 0] as [number, number, number],
+          receiveShadow: true,
+        })),
+        // Separator: creates the gap the divider swings into (OI 5-9 item 3)
+        { mat: 'steelLight', size: [0.5, 0.5, 3.6], pos: [-1.5, 0.3, 0], receiveShadow: true },
+        { mat: 'rubberBlack', size: [0.12, 0.3, 3.4], pos: [-1.2, 0.22, 0], receiveShadow: true },
+        // Width adjustment spindle and hand wheel (OI 5-10)
+        {
+          mat: 'steelMid', shape: 'cylinder',
+          size: [0.07, 1.6, 0.07], pos: [0.4, 0.95, -2.3],
+          rot: [0, 0, Math.PI / 2], receiveShadow: true,
+        },
+        {
+          mat: 'steelDark', shape: 'cylinder',
+          size: [0.42, 0.06, 0.42], pos: [-0.45, 0.95, -2.3],
+          rot: [0, 0, Math.PI / 2], receiveShadow: true,
+        },
+      ]),
+    []
+  );
+  const mats = materials();
+
   return (
     <group position={[-10.55, 3.22, 0]}>
-      <Box mat="frameDark" pos={[0, 0.1, 0]} size={[2.0, 0.05, 4.2]} castShadow receiveShadow />
-
-      {/* Guide rails */}
-      {[-0.4, 0.4].map((x) => (
-        <Cyl key={`rail-${x}`} mat="rail" pos={[x, 0.25, 0]} rot={[Math.PI / 2, 0, 0]} size={[0.1, 4.0, 0.1]} castShadow receiveShadow />
+      {statics.map((g) => (
+        <mesh key={g.key} geometry={g.geometry} material={mats[g.mat]} receiveShadow />
       ))}
 
+      {/* Gap sensor — the divider may only swing when it reports clear */}
+      <Box mat={gapClear ? 'sensorOn' : 'rejectBox'} pos={[-0.95, 0.64, 1.9]} size={[0.18, 0.18, 0.18]} />
+
       {/* Lane-seeking carriage */}
-      {/*
-        Separator upstream of the divider. It creates the gap the divider needs
-        to swing into, and the gap sensor confirms it (OI 5-9 items 3/5).
-      */}
-      <group position={[-1.5, 0.3, 0]}>
-        <Box mat="steelLight" size={[0.5, 0.5, 3.6]} castShadow receiveShadow />
-        <Box mat="rubberBlack" pos={[0.3, -0.08, 0]} size={[0.12, 0.3, 3.4]} castShadow receiveShadow />
-        <Box mat={gapClear ? 'sensorOn' : 'rejectBox'} pos={[0.55, 0.34, 1.9]} size={[0.18, 0.18, 0.18]} castShadow />
-      </group>
-
-      {/*
-        Width adjustment: spindle and hand wheel, set to the format
-        (OI 5-10 "Width adjustment divider").
-      */}
-      <group position={[0.4, 0.95, -2.3]}>
-        <Cyl mat="rail" rot={[0, 0, Math.PI / 2]} size={[0.07, 1.6, 0.07]} castShadow receiveShadow />
-        <Cyl mat="steelDark" pos={[-0.85, 0, 0]} rot={[0, 0, Math.PI / 2]} size={[0.42, 0.06, 0.42]} castShadow receiveShadow />
-      </group>
-
       <group ref={carriageRef}>
-        <Box mat="cover" pos={[0, 0.35, 0]} size={[1.2, 0.15, 1.4]} castShadow receiveShadow />
+        <Box mat="steelLight" pos={[0, 0.35, 0]} size={[1.2, 0.15, 1.4]} receiveShadow />
         {[-0.4, 0.4].map((z) => (
-          <Box key={`arm-${z}`} mat="amberOn" pos={[1.2, 0.35, z]} size={[2.4, 0.1, 0.05]} castShadow receiveShadow />
+          <Box key={`arm-${z}`} mat="amberOn" pos={[1.2, 0.35, z]} size={[2.4, 0.1, 0.05]} receiveShadow />
         ))}
-        <Box mat="pusherHead" pos={[-0.2, 0.55, 0]} size={[0.4, 0.3, 0.6]} castShadow receiveShadow />
-        <Box mat="sensorOn" pos={[-0.2, 0.75, 0]} size={[0.2, 0.1, 0.2]} castShadow receiveShadow />
+        <Box mat="pusherHead" pos={[-0.2, 0.55, 0]} size={[0.4, 0.3, 0.6]} receiveShadow />
       </group>
     </group>
   );
