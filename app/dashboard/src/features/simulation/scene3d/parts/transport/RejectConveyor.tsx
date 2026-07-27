@@ -1,6 +1,9 @@
-import { memo } from 'react';
+import { memo, useMemo } from 'react';
 import { Html } from '@react-three/drei';
 import { Box } from '../../core/primitives';
+import { materials } from '../../core/materials';
+import { mergeStaticParts } from '../../core/merge';
+import type { StaticPart } from '../../core/merge';
 import { MACHINE_LAYOUT_3D } from '../../../machineLayout';
 
 const REJECT = MACHINE_LAYOUT_3D.zones.rejectConveyor;
@@ -8,11 +11,58 @@ const REJECT = MACHINE_LAYOUT_3D.zones.rejectConveyor;
 /**
  * The reject branch at the outfeed.
  *
- * NOTE (Phase 6h): the real machine discharges rejects onto a *gravity roller
- * track* standing on its own legs, not a slatted belt — see OI 5-56 in
- * `docs/3d-rebuild/media/05-56_outfeed_cad.png`. This keeps the current slat
- * geometry; the rebuild is a later phase.
+ * Rejects leave on a **gravity roller track** standing on its own legs, branching
+ * off the outfeed (OI 5-56 items 1/3). The safety roll and its sensor sit at the
+ * head of the track; the max-jam sensor watches the accumulation.
  */
+
+const ROLLER_COUNT = 12;
+const ROLLER_PITCH = 0.46;
+
+/** Track bed, rollers, side rails and support legs — none of it moves. */
+const TRACK_PARTS: StaticPart[] = [
+  // Chute off the outfeed
+  {
+    mat: 'frame',
+    size: [1.55, 0.06, 0.42],
+    pos: [15.36, 1.0, 2.48],
+    rot: [0, 0, 0.24],
+    castShadow: true,
+    receiveShadow: true,
+  },
+  // Free-running gravity rollers
+  ...Array.from({ length: ROLLER_COUNT }, (_, i) => ({
+    mat: 'steelLight' as const,
+    shape: 'cylinder' as const,
+    size: [0.16, REJECT.depth - 0.1, 0.16] as [number, number, number],
+    pos: [REJECT.x - 2.5 + i * ROLLER_PITCH, 0.98, REJECT.z] as [number, number, number],
+    rot: [Math.PI / 2, 0, 0] as [number, number, number],
+    castShadow: true,
+    receiveShadow: true,
+  })),
+  // Side rails
+  ...[-1, 1].map((sign) => ({
+    mat: 'coverDark' as const,
+    size: [REJECT.width, 0.2, 0.07] as [number, number, number],
+    pos: [REJECT.x, 1.06, REJECT.z + sign * (REJECT.depth / 2 + 0.04)] as [number, number, number],
+    castShadow: true,
+    receiveShadow: true,
+  })),
+  // Its own support legs with levelling feet (OI 5-56)
+  ...[-2.3, 0.2, 2.6].flatMap((dx) =>
+    [-1, 1].map((sign) => ({
+      mat: 'frame' as const,
+      size: [0.1, 0.92, 0.1] as [number, number, number],
+      pos: [REJECT.x + dx, 0.48, REJECT.z + sign * (REJECT.depth / 2 - 0.05)] as [
+        number,
+        number,
+        number,
+      ],
+      castShadow: true,
+      receiveShadow: true,
+    }))
+  ),
+];
 export const RejectConveyor = memo(function RejectConveyor({
   storedPositions,
   active,
@@ -24,30 +74,24 @@ export const RejectConveyor = memo(function RejectConveyor({
   liveRejectActive: boolean;
   liveRejectX: number;
 }) {
+  const track = useMemo(() => mergeStaticParts(TRACK_PARTS), []);
+  const mats = materials();
+
   return (
     <group>
-      {/* Bed and chute */}
-      <Box mat="frameDarkMatte" pos={[REJECT.x, 0.94, REJECT.z]} size={[REJECT.width, 0.12, REJECT.depth]} castShadow receiveShadow />
-      <Box mat="frame" pos={[15.36, 1.0, 2.48]} rot={[0, 0, 0.24]} size={[1.55, 0.06, 0.42]} castShadow receiveShadow />
-      <Box mat="frameDark" pos={[REJECT.x, 0.87, REJECT.z]} size={[REJECT.width, 0.16, 0.08]} castShadow receiveShadow />
-
-      {/* Side rails */}
-      <Box mat="coverDark" pos={[REJECT.x, 1.08, REJECT.z + 0.72]} size={[REJECT.width, 0.22, 0.06]} castShadow receiveShadow />
-      <Box mat="coverDark" pos={[REJECT.x, 1.08, REJECT.z - 0.72]} size={[REJECT.width, 0.22, 0.06]} castShadow receiveShadow />
-      <Box mat="coverDark" pos={[REJECT.x - 2.8, 1.08, REJECT.z]} size={[0.06, 0.22, 1.44]} castShadow receiveShadow />
-      <Box mat="coverDark" pos={[REJECT.x + 2.8, 1.08, REJECT.z]} size={[0.06, 0.22, 1.44]} castShadow receiveShadow />
-
-      {/* Slats */}
-      {Array.from({ length: 6 }).map((_, index) => (
-        <Box
-          key={`reject-slat-${index}`}
-          mat="coverDark"
-          pos={[REJECT.x - 2.1 + index * 0.88, 1.0, REJECT.z]}
-          size={[0.48, 0.03, 1.16]}
-          castShadow
-          receiveShadow
+      {track.map((g) => (
+        <mesh
+          key={g.key}
+          geometry={g.geometry}
+          material={mats[g.mat]}
+          castShadow={g.castShadow}
+          receiveShadow={g.receiveShadow}
         />
       ))}
+
+      {/* Safety roll at the head of the track, plus its sensor (OI 5-56 items 6/7) */}
+      <Box mat="rubberBlack" pos={[REJECT.x - 3.0, 1.12, REJECT.z]} size={[0.16, 0.28, REJECT.depth]} castShadow receiveShadow />
+      <Box mat={active ? 'rejectBox' : 'sensorOn'} pos={[REJECT.x - 3.0, 1.42, REJECT.z + 0.6]} size={[0.16, 0.16, 0.16]} castShadow />
 
       {/* Accumulated rejects */}
       {storedPositions.map((xPosition, index) => (

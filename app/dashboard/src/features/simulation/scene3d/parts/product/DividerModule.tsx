@@ -15,9 +15,12 @@ import { damp, FOLLOW_LAMBDA } from '../../../animation/constants';
 export const DividerModule = memo(function DividerModule({
   currentLane,
   rowCount,
+  gapClear,
 }: {
   currentLane: number;
   rowCount: number;
+  /** Divider may only swing when the gap sensor reports clear (OI 5-9 item 5). */
+  gapClear: boolean;
 }) {
   const carriageRef = useRef<Group>(null);
   const laneZ = useMemo(() => getLaneZ3D(rowCount), [rowCount]);
@@ -38,6 +41,25 @@ export const DividerModule = memo(function DividerModule({
       ))}
 
       {/* Lane-seeking carriage */}
+      {/*
+        Separator upstream of the divider. It creates the gap the divider needs
+        to swing into, and the gap sensor confirms it (OI 5-9 items 3/5).
+      */}
+      <group position={[-1.5, 0.3, 0]}>
+        <Box mat="steelLight" size={[0.5, 0.5, 3.6]} castShadow receiveShadow />
+        <Box mat="rubberBlack" pos={[0.3, -0.08, 0]} size={[0.12, 0.3, 3.4]} castShadow receiveShadow />
+        <Box mat={gapClear ? 'sensorOn' : 'rejectBox'} pos={[0.55, 0.34, 1.9]} size={[0.18, 0.18, 0.18]} castShadow />
+      </group>
+
+      {/*
+        Width adjustment: spindle and hand wheel, set to the format
+        (OI 5-10 "Width adjustment divider").
+      */}
+      <group position={[0.4, 0.95, -2.3]}>
+        <Cyl mat="rail" rot={[0, 0, Math.PI / 2]} size={[0.07, 1.6, 0.07]} castShadow receiveShadow />
+        <Cyl mat="steelDark" pos={[-0.85, 0, 0]} rot={[0, 0, Math.PI / 2]} size={[0.42, 0.06, 0.42]} castShadow receiveShadow />
+      </group>
+
       <group ref={carriageRef}>
         <Box mat="cover" pos={[0, 0.35, 0]} size={[1.2, 0.15, 1.4]} castShadow receiveShadow />
         {[-0.4, 0.4].map((z) => (

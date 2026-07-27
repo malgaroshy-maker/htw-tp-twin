@@ -23,6 +23,7 @@ import { RejectConveyor } from './scene3d/parts/transport/RejectConveyor';
 import { ChainInfeed } from './scene3d/parts/product/ChainInfeed';
 import { SidePushers } from './scene3d/parts/product/SidePushers';
 import { GroupedLaneFill } from './scene3d/parts/product/GroupedLaneFill';
+import { StopperTerminal } from './scene3d/parts/product/StopperTerminal';
 import { SuctionArm } from './scene3d/parts/blank/SuctionArm';
 import { InnerMagazine } from './scene3d/parts/blank/InnerMagazine';
 import { FlatBlank } from './scene3d/parts/blank/FlatBlank';
@@ -175,7 +176,7 @@ function MachineScene({
       {layerVisibility.frame && (
         <group>
           <MachineFrame />
-          <DividerModule currentLane={model.currentLane} rowCount={model.rowCount} />
+          <DividerModule currentLane={model.currentLane} rowCount={model.rowCount} gapClear={model.dividerGapClear} />
         </group>
       )}
 
@@ -209,6 +210,7 @@ function MachineScene({
             );
           })}
           <GroupedLaneFill laneFillCounts={model.laneFillCounts} rowCount={model.rowCount} colCount={model.colCount} />
+          <StopperTerminal stopperClosed={model.stopperClosed} terminalClosed={model.terminalClosed} />
           <ProductSlug
             visible={model.slugVisible}
             x={model.slugX}

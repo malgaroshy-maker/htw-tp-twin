@@ -47,6 +47,14 @@ export interface MachineSceneModel {
   blanksRemaining: number;
   /** Vacuum applied at the suction cups; shut off at the arm's lower end position. */
   vacuumOk: boolean;
+  /** Chain stopper blade down, holding product back (OT p10 item 1). */
+  stopperClosed: boolean;
+  /** Terminal blade down, closing behind the captured formation (item 2). */
+  terminalClosed: boolean;
+  /** Divider gap sensor: clear enough for the divider to swing. */
+  dividerGapClear: boolean;
+  /** Lane filling matches the virtual model. */
+  laneFillOk: boolean;
 }
 
 function lerp(from: number, to: number, t: number) {
@@ -208,6 +216,10 @@ export function useMachineSceneModel(state: SimulatorState | null): MachineScene
       phaseDescription: PHASE_DESCRIPTIONS[phase] ?? 'Machine cycle in progress.',
       blanksRemaining: out.blanks_remaining ?? 0,
       vacuumOk: sns.tray_vacuum_ok ?? false,
+      stopperClosed: sns.stopper_closed ?? false,
+      terminalClosed: sns.terminal_closed ?? false,
+      dividerGapClear: sns.divider_gap_clear ?? true,
+      laneFillOk: sns.lane_fill_ok ?? true,
       machineMode: sts.machine_mode,
       isManualMode: sts.machine_mode === 'MANUAL',
     };
