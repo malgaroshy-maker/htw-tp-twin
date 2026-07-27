@@ -6,6 +6,7 @@ import { materials } from '../../core/materials';
 import { useMergedParts } from '../../core/useMergedParts';
 import type { StaticPart } from '../../core/merge';
 import { MACHINE_LAYOUT_3D, PRODUCT_SIZE_3D } from '../../../machineLayout';
+import { slugDisplayX } from '../../../animation/slugTracker';
 
 const TRANSFER = MACHINE_LAYOUT_3D.zones.transfer;
 const { deckHeights } = MACHINE_LAYOUT_3D;
@@ -43,6 +44,12 @@ const LOOP = {
 /** Pusher plates span the full lane width between the two frames. */
 const BAR_HALF_Z = 1.95;
 const PLATE_COUNT = 5;
+/**
+ * How far behind the formation origin the pushing plate sits. `ProductSlug` lays
+ * its products forward from the group origin, so the origin *is* the trailing
+ * face — the plate only needs to clear its own thickness.
+ */
+const PLATE_STANDOFF = 0.22;
 
 /**
  * Point on the rounded-rectangle chain path for t in [0,1), running clockwise
@@ -195,15 +202,12 @@ export const ChainInfeed = memo(function ChainInfeed({
   progress,
   gapSensorActive,
   completenessCameraActive,
-  slugX,
   pushing,
 }: {
   active: boolean;
   progress: number;
   gapSensorActive: boolean;
   completenessCameraActive: boolean;
-  /** Live X of the formation being pushed. */
-  slugX: number;
   /** True while the formation is actually being driven onto the tray. */
   pushing: boolean;
 }) {
@@ -218,12 +222,22 @@ export const ChainInfeed = memo(function ChainInfeed({
     // Accumulating the delta (rather than assigning progress) keeps the motion
     // continuous across the wrap at the end of each cycle.
     if (pushing) {
-      // Lock the loop so a plate sits just behind the formation. Previously the
-      // plates and the slug were timed independently, so the plates swept
-      // through empty air while the formation moved on its own.
-      const wanted = phaseAtLowerRunX(slugX - 1.1);
-      const nearest = Math.round(phase.current * PLATE_COUNT) / PLATE_COUNT;
-      phase.current = nearest + (wanted - Math.floor(wanted * PLATE_COUNT) / PLATE_COUNT);
+      /*
+       * Lock the loop so a plate sits just behind the formation's trailing face.
+       *
+       * The plates are evenly spaced at 1/PLATE_COUNT, so any phase of the form
+       * `wanted - i/PLATE_COUNT` puts plate `i` exactly on target. Choosing the
+       * `i` nearest the current phase keeps the chain continuous instead of
+       * jumping to a different plate mid-push.
+       *
+       * `slugDisplayX()` is the formation's *damped* position, not the polled
+       * one. Reading the poll value here meant the plates chased a 2 Hz staircase
+       * while the formation glided, so they fell behind and snapped forward twice
+       * a second — the lag.
+       */
+      const wanted = phaseAtLowerRunX(slugDisplayX() - PLATE_STANDOFF);
+      const i = Math.round((wanted - phase.current) * PLATE_COUNT);
+      phase.current = wanted - i / PLATE_COUNT;
     } else if (active) {
       let step = progress - lastProgress.current;
       if (step < -0.5) step += 1; // wrapped

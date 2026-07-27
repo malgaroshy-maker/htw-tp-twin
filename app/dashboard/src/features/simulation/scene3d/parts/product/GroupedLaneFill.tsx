@@ -5,7 +5,7 @@ import { Box } from '../../core/primitives';
 import { geometries } from '../../core/geometries';
 import { materials } from '../../core/materials';
 import { MACHINE_LAYOUT_3D, getLaneZ3DReal, PRODUCT_SIZE_3D } from '../../../machineLayout';
-import { slotX, LANE_ENTRY_X, TERMINAL_X } from './groupingGeometry';
+import { slotX, LANE_ENTRY_X, TERMINAL_X, STOPPER_X } from './groupingGeometry';
 import { damp, FOLLOW_LAMBDA } from '../../../animation/constants';
 
 const GROUPING = MACHINE_LAYOUT_3D.zones.grouping;
@@ -101,6 +101,21 @@ export const GroupedLaneFill = memo(function GroupedLaneFill({
           pos={[GROUPING.x, MACHINE_LAYOUT_3D.deckHeights.products - LANE_BELT_T / 2, z]}
           size={[GROUPING.width - 0.4, LANE_BELT_T, PRODUCT_SIZE_3D[2] * 1.02]}
           receiveShadow
+        />
+      ))}
+
+      {/*
+        Lane-filling control sensors (OI 5-12 item 3) — one per lane, over the
+        stopper end where a full lane registers. The grouping unit had no visible
+        sensing at all, which is most of why it read as three bare belts rather
+        than a controlled station.
+      */}
+      {laneZ.map((z, lane) => (
+        <Box
+          key={`lane-sensor-${lane}`}
+          mat={laneFillCounts[lane] >= colCount ? 'ledGreenOn' : 'sensorOff'}
+          pos={[STOPPER_X - 0.9, MACHINE_LAYOUT_3D.deckHeights.products + PRODUCT_SIZE_3D[1] + 0.16, z]}
+          size={[0.12, 0.12, 0.12]}
         />
       ))}
 

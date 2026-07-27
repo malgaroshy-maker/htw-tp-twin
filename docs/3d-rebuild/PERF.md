@@ -588,3 +588,71 @@ four other fields (`slugCompression`, `targetGroupCount`, `lastRejectReason`,
 Camera presets and flow arrows were checked against the same table and are
 correct; `TransportGuides` was already fully derived from the tray footprint and
 needed no change.
+
+## Cycle-repeat motion, and six stations reworked
+
+### The blank ran backwards at the cycle boundary
+
+Two independent causes, both of which had to go.
+
+**Parts kept damping while off screen.** `FlatBlank` travels to x = 16 by the end
+of DISCHARGE; its target then resets to the magazine at x = -13.4 for the next
+cycle. The part is hidden in between — but `useFrame` still runs, and in
+`FlatBlank`'s case the early `if (!mesh) return` guard meant the follow was
+*skipped* while hidden and the displayed X stayed frozen at the discharge. Come
+the next BLANK_FEED it reappeared 29 units downstream of its target and slid
+**backwards up the machine** to catch up. `FormedCarton` had the same shape via
+its panel guard. Both now track position in refs updated before the guard, using
+a new `dampVisible()` that follows the target exactly while hidden — so a part is
+always in position the instant it appears.
+
+**A backwards step written into the phase table.** The blank's own X ramp ran
+`transferX -> packingX + 1.6` (5.3 -> 7.7) through PACKING, then DISCHARGE
+restarted it at `packingX` (6.1) — behind where PACKING left it. It was also being
+drawn *at the same time as* `FormedCarton`, which wraps around that exact board
+and runs 5.3 -> 12.6, so one physical object was drawn twice, five units apart and
+diverging. The flat blank now ends at TRANSFER and hands straight to the carton;
+both sit at x 5.3 at the boundary, so the handover is invisible.
+
+### The chain infeed lagged
+
+`ProductSlug` damps `slugX` so the formation glides; `ChainInfeed` locked its
+pusher plates to the **raw polled** `slugX`. So the plates chased a 2 Hz staircase
+while the formation they were pushing moved smoothly — falling behind, then
+snapping forward, twice a second. `animation/slugTracker.ts` publishes the
+formation's damped X; the plates lock to that. The lock itself was also rewritten:
+plates are evenly spaced at `1/N`, so `phase = wanted - i/N` puts plate `i` on
+target for any integer `i`, and picking the `i` nearest the current phase keeps the
+chain continuous instead of jumping between plates mid-push.
+
+The **blank transport** had the identical fault and now uses the identical fix
+(`animation/blankTracker.ts`). Its drivers free-ran at a fixed `delta * 0.09` with
+no relation to the board they exist to push, so they slid straight through it.
+A driver now rides against the blank's trailing edge while it is in transit and
+free-runs only when the transport is empty. The run also started 2.7 units
+upstream of the suction arm's deposit point, so a third of every driver's travel
+carried nothing; it now starts where blanks are actually put down.
+
+### Stations
+
+**Divider.** Was a box translating sideways. Now rides a visible linear rail,
+leans into its travel at a rate taken from its own measured movement, and strokes
+its pusher head — retracted while seeking a lane, extended once settled on it and
+the gap sensor is clear. That stroke is the entire point of the mechanism and was
+not modelled.
+
+**Grouping gates.** The stopper and terminal blades hung in mid-air on nothing.
+Each is now a pneumatic gate: cylinder body, and a rod whose visible extension is
+*derived from the blade position* rather than animated separately, so the two can
+never disagree. At the overview camera the blade is a few pixels tall and the rod
+is what makes the stroke legible. Added the per-lane filling-control sensors
+(OI 5-12 item 3), which the grouping unit had been missing entirely — most of why
+it read as three bare belts rather than a controlled station.
+
+**Outer blank magazine height.** The worst of the remaining height errors: feed
+rollers at 0.58 carrying blank stacks drawn at 2.38, so the stacks floated 1.7
+above the rollers that drive them, behind a 1.8-tall cabinet connected to neither.
+The magazine also stood *taller* than the cross transfer it feeds, which is
+backwards — blanks travel upward from here. The chain is now monotonic: roller top
+0.70 -> cross-transfer top 1.14 -> shaft mouth 1.72, with a ramp between the first
+two and the cabinet reduced to the base the rollers actually sit on.

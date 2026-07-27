@@ -89,16 +89,26 @@ export function useMachineSceneModel(state: SimulatorState | null): MachineScene
     const { blankPath, productPath } = MACHINE_LAYOUT_3D;
     let blankX = blankPath.magazineStartX;
     const blankZ = blankPath.z;
+    /*
+     * The flat blank exists on screen only until the carton takes over at
+     * PACKING. It used to be drawn through PACKING and DISCHARGE as well, on its
+     * own X ramp — which had two faults:
+     *
+     * - It ran `transferX -> packingX + 1.6` (5.3 -> 7.7) while the carton wrapped
+     *   around the same board ran `packStartX -> packEndX` (5.3 -> 12.6). Two
+     *   drawings of one object, drifting five units apart.
+     * - DISCHARGE then restarted it at `packingX` (6.1), **behind** where PACKING
+     *   left it (7.7) — a backwards step written into the phase table itself.
+     *
+     * TRANSFER hands straight over to `FormedCarton`, and both sit at x 5.3 at the
+     * boundary, so the handover is invisible.
+     */
     if (phase === 'BLANK_FEED') {
       blankX = visualProgress < 0.25
         ? lerp(blankPath.crossTransferX, blankPath.blankWithdrawX, visualProgress / 0.25)
         : lerp(blankPath.blankWithdrawX, blankPath.transferX, (visualProgress - 0.25) / 0.75);
     } else if (phase === 'TRANSFER') {
       blankX = blankPath.transferX;
-    } else if (phase === 'PACKING') {
-      blankX = lerp(blankPath.transferX, blankPath.packingX + 1.6, Math.min(visualProgress, 0.52) / 0.52);
-    } else if (phase === 'DISCHARGE') {
-      blankX = lerp(blankPath.packingX, blankPath.dischargeX, visualProgress);
     }
 
     /*
@@ -164,7 +174,7 @@ export function useMachineSceneModel(state: SimulatorState | null): MachineScene
       groupedCount: out.grouped_count,
       laneFillCounts,
       currentLane,
-      blankVisible: phase === 'BLANK_FEED' || phase === 'TRANSFER' || phase === 'PACKING',
+      blankVisible: phase === 'BLANK_FEED' || phase === 'TRANSFER',
       blankX,
       blankZ,
       slugVisible: slugOpacity > 0.02,

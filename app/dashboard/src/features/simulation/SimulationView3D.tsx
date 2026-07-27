@@ -301,7 +301,6 @@ function MachineScene({
             progress={model.chainInfeedOffset}
             gapSensorActive={model.gapSensorActive}
             completenessCameraActive={model.completenessCameraActive}
-            slugX={model.slugX}
             pushing={model.phase === 'TRANSFER'}
           />
         </group>

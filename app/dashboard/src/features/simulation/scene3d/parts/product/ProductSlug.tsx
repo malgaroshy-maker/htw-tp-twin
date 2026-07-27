@@ -4,7 +4,8 @@ import * as THREE from 'three';
 import { geometries } from '../../core/geometries';
 import { materials } from '../../core/materials';
 import { MACHINE_LAYOUT_3D, PRODUCT_SIZE_3D, REAL_MM, MM, getLaneZ3DReal } from '../../../machineLayout';
-import { damp, FOLLOW_LAMBDA } from '../../../animation/constants';
+import { dampVisible, FOLLOW_LAMBDA } from '../../../animation/constants';
+import { setSlugDisplayX } from '../../../animation/slugTracker';
 
 /**
  * Upper bound on instances. The formation is 3 x 8..10 on the real machine
@@ -41,9 +42,13 @@ export const ProductSlug = memo(function ProductSlug({
   const lastLayout = useRef('');
 
   useFrame((_, delta) => {
-    // `x` steps at the 500 ms poll; chase it so the slug glides.
-    displayX.current = damp(displayX.current, x, FOLLOW_LAMBDA, delta);
+    // `x` steps at the 500 ms poll; chase it so the slug glides. While the slug
+    // is hidden between cycles the target resets several units upstream, so the
+    // follow is bypassed — otherwise it reappears mid-slide, running backwards.
+    displayX.current = dampVisible(displayX.current, x, visible, FOLLOW_LAMBDA, delta);
     if (groupRef.current) groupRef.current.position.x = displayX.current;
+    // The chain infeed locks its pusher plates to this, not to the polled `x`.
+    setSlugDisplayX(displayX.current);
 
     const mesh = meshRef.current;
     if (!mesh) return;

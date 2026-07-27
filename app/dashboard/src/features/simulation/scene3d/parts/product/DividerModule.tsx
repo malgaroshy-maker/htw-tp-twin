@@ -1,6 +1,6 @@
 import { memo, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
-import type { Group } from 'three';
+import type { Group, Mesh } from 'three';
 import { Box } from '../../core/primitives';
 import { MACHINE_LAYOUT_3D, getLaneZ3DReal } from '../../../machineLayout';
 import { damp, FOLLOW_LAMBDA } from '../../../animation/constants';
@@ -22,6 +22,12 @@ import { useMergedParts } from '../../core/useMergedParts';
  */
 /** Bed top sits flush with the surface product rides on. */
 const BED_Y = MACHINE_LAYOUT_3D.deckHeights.products - 0.125;
+
+/** Carriage is "on the lane" once it is within this of the lane centre. */
+const LANE_SETTLED = 0.06;
+/** Pusher head stroke, retracted and extended, in carriage-local X. */
+const STROKE_IN = -0.2;
+const STROKE_OUT = 0.55;
 export const DividerModule = memo(function DividerModule({
   currentLane,
   rowCount,
@@ -33,12 +39,36 @@ export const DividerModule = memo(function DividerModule({
   gapClear: boolean;
 }) {
   const carriageRef = useRef<Group>(null);
+  const headRef = useRef<Mesh>(null);
   const laneZ = useMemo(() => getLaneZ3DReal(rowCount), [rowCount]);
 
   useFrame((_, delta) => {
-    if (!carriageRef.current) return;
+    const carriage = carriageRef.current;
+    if (!carriage) return;
+
     const targetZ = laneZ[Math.min(currentLane, rowCount - 1)] || 0;
-    carriageRef.current.position.z = damp(carriageRef.current.position.z, targetZ, FOLLOW_LAMBDA * 1.4, delta);
+    const before = carriage.position.z;
+    carriage.position.z = damp(before, targetZ, FOLLOW_LAMBDA * 1.4, delta);
+
+    /*
+     * Two things the carriage was missing, both of which are what makes a
+     * transfer arm read as one rather than as a box sliding sideways:
+     *
+     * 1. It leans into its travel. Rate is taken from the frame's own movement,
+     *    so the lean is proportional to how fast it is actually crossing.
+     * 2. The pusher head strokes. While seeking a lane it is retracted; once
+     *    settled on the lane it extends to place the product, which is the whole
+     *    point of the mechanism.
+     */
+    const rate = delta > 0 ? (carriage.position.z - before) / delta : 0;
+    carriage.rotation.x = damp(carriage.rotation.x, Math.max(-0.3, Math.min(0.3, rate * 0.08)), FOLLOW_LAMBDA, delta);
+
+    const head = headRef.current;
+    if (head) {
+      const settled = Math.abs(targetZ - carriage.position.z) < LANE_SETTLED;
+      const extend = settled && gapClear ? STROKE_OUT : STROKE_IN;
+      head.position.x = damp(head.position.x, extend, FOLLOW_LAMBDA * 1.6, delta);
+    }
   });
 
   // Everything except the lane-seeking carriage is fixed, so it is baked into
@@ -79,13 +109,17 @@ export const DividerModule = memo(function DividerModule({
       {/* Gap sensor — the divider may only swing when it reports clear */}
       <Box mat={gapClear ? 'sensorOn' : 'rejectBox'} pos={[-0.95, 0.64, 1.9]} size={[0.18, 0.18, 0.18]} />
 
+      {/* Linear rail the carriage rides — it used to travel on nothing. */}
+      <Box mat="steelDark" pos={[0, 0.5, 0]} size={[0.1, 0.1, 3.4]} receiveShadow />
+
       {/* Lane-seeking carriage */}
       <group ref={carriageRef}>
         <Box mat="steelLight" pos={[0, 0.35, 0]} size={[1.2, 0.15, 1.4]} receiveShadow />
         {[-0.4, 0.4].map((z) => (
           <Box key={`arm-${z}`} mat="amberStatic" pos={[1.2, 0.35, z]} size={[2.4, 0.1, 0.05]} receiveShadow />
         ))}
-        <Box mat="pusherHead" pos={[-0.2, 0.55, 0]} size={[0.4, 0.3, 0.6]} receiveShadow />
+        {/* Stroking pusher head */}
+        <Box ref={headRef} mat="pusherHead" pos={[STROKE_IN, 0.55, 0]} size={[0.4, 0.3, 0.6]} castShadow receiveShadow />
       </group>
     </group>
   );

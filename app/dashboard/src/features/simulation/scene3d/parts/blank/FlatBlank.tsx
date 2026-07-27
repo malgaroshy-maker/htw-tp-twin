@@ -4,7 +4,8 @@ import * as THREE from 'three';
 import { geometries } from '../../core/geometries';
 import { materials } from '../../core/materials';
 import { sampleBlankPath } from '../../core/mathUtils';
-import { damp, FOLLOW_LAMBDA } from '../../../animation/constants';
+import { dampVisible, FOLLOW_LAMBDA } from '../../../animation/constants';
+import { setBlankDisplay } from '../../../animation/blankTracker';
 
 const SEGMENT_COUNT = 11;
 const SEGMENT_OFFSETS = Array.from({ length: SEGMENT_COUNT }, (_, i) => -1.5 + i * 0.3);
@@ -35,10 +36,20 @@ export const FlatBlank = memo(function FlatBlank({
   const displayX = useRef(x);
 
   useFrame((_, delta) => {
+    /*
+     * Updated before the mesh guard, and bypassed while hidden. Between cycles
+     * the target resets from the discharge (x 16) back to the magazine (x -13.4);
+     * the mesh does not exist then, so the old code left `displayX` frozen at the
+     * discharge and the blank reappeared 29 units downstream of its target,
+     * sliding *backwards up the machine* to catch up.
+     */
+    displayX.current = dampVisible(displayX.current, x, visible, FOLLOW_LAMBDA, delta);
+    // The transport drivers lock to this, so a driver stays behind the board it
+    // is pushing instead of free-running through it.
+    setBlankDisplay(displayX.current, visible);
+
     const mesh = meshRef.current;
     if (!mesh) return;
-
-    displayX.current = damp(displayX.current, x, FOLLOW_LAMBDA, delta);
     const cx = displayX.current;
 
     let i = 0;

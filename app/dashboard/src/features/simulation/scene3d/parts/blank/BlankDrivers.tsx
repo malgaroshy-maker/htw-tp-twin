@@ -7,8 +7,10 @@ import { useMergedParts } from '../../core/useMergedParts';
 import type { StaticPart } from '../../core/merge';
 import { MACHINE_LAYOUT_3D } from '../../../machineLayout';
 import { sampleBlankPath } from '../../core/mathUtils';
+import { blankDisplayX, blankInTransit } from '../../../animation/blankTracker';
+import { SHAFT_X } from './shaftGeometry';
 
-const { blankPath, zones } = MACHINE_LAYOUT_3D;
+const { blankPath } = MACHINE_LAYOUT_3D;
 
 /**
  * Blank transport drivers (OI 5-34, "Mitnehmer").
@@ -22,9 +24,18 @@ const { blankPath, zones } = MACHINE_LAYOUT_3D;
  */
 
 const DRIVER_COUNT = 6;
-const RUN_START = zones.blankTransport.x - zones.blankTransport.width / 2 - 1.0;
+/*
+ * The run starts where blanks are actually put on the transport — the suction
+ * arm's deposit point below the shaft — not 2.7 units upstream of it, where the
+ * drivers used to spend a third of their travel carrying nothing.
+ */
+const RUN_START = SHAFT_X - 1.2;
 const RUN_END = blankPath.transferX;
 const RUN_LENGTH = RUN_END - RUN_START;
+/** Trailing edge clearance: the driver catches the back of the board. */
+const DRIVER_STANDOFF = 1.65;
+/** Free-run speed, in run-lengths per second, when no blank is on the transport. */
+const IDLE_RATE = 0.09;
 
 /** Curved guide plate at the head of the run, traced as short segments. */
 const GUIDE_PLATE: StaticPart[] = Array.from({ length: 10 }, (_, i) => {
@@ -54,10 +65,26 @@ export const BlankDrivers = memo(function BlankDrivers({ running }: { running: b
   useFrame((_, delta) => {
     const mesh = meshRef.current;
     if (!mesh) return;
-    if (running) offset.current = (offset.current + delta * 0.09) % 1;
+
+    if (blankInTransit()) {
+      /*
+       * Lock the chain so a driver sits against the trailing edge of the board.
+       * Same construction as the chain infeed's plate lock: the drivers are
+       * evenly spaced at 1/DRIVER_COUNT, so `wanted - i/DRIVER_COUNT` puts driver
+       * `i` on target, and choosing the nearest `i` keeps the chain continuous.
+       *
+       * Before this the drivers ran at a fixed 0.09 per second with no relation
+       * to the blank at all, so they slid straight through the board.
+       */
+      const wanted = (blankDisplayX() - DRIVER_STANDOFF - RUN_START) / RUN_LENGTH;
+      const i = Math.round((wanted - offset.current) * DRIVER_COUNT);
+      offset.current = wanted - i / DRIVER_COUNT;
+    } else if (running) {
+      offset.current = (offset.current + delta * IDLE_RATE) % 1;
+    }
 
     for (let i = 0; i < DRIVER_COUNT; i += 1) {
-      const t = (offset.current + i / DRIVER_COUNT) % 1;
+      const t = ((offset.current + i / DRIVER_COUNT) % 1 + 1) % 1;
       const pose = sampleBlankPath(RUN_START + t * RUN_LENGTH);
       dummy.position.set(pose.x, pose.y + 0.09, blankPath.z);
       dummy.rotation.set(0, 0, pose.angle);

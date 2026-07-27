@@ -33,3 +33,26 @@ export const FOLLOW_LAMBDA = 6.5;
 export function damp(current: number, target: number, lambda: number, delta: number) {
   return target + (current - target) * Math.exp(-lambda * delta);
 }
+
+/**
+ * Damped follow for a part that is only on screen during part of the cycle.
+ *
+ * A plain `damp` is wrong for these. A part like the flat blank travels to
+ * x = 16 by the end of DISCHARGE and its target then resets to the magazine at
+ * x = -13.4 for the next cycle. While hidden it kept damping across that
+ * 29-unit gap, so it was still mid-slide when the next BLANK_FEED made it
+ * visible again — and it appeared **travelling backwards up the machine**.
+ *
+ * While hidden there is nothing to smooth, so the display value tracks the
+ * target exactly and the part is always in position the moment it appears.
+ */
+export function dampVisible(
+  current: number,
+  target: number,
+  visible: boolean,
+  lambda: number,
+  delta: number
+) {
+  if (!visible) return target;
+  return damp(current, target, lambda, delta);
+}

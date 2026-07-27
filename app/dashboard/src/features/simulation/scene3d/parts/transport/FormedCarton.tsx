@@ -8,7 +8,7 @@ import { Box, Plane } from '../../core/primitives';
 import { materials } from '../../core/materials';
 import { MACHINE_LAYOUT_3D, TRAY_SIZE_3D, PRODUCT_SIZE_3D, REAL_MM, MM } from '../../../machineLayout';
 import { lerp } from '../../core/mathUtils';
-import { damp, FOLLOW_LAMBDA } from '../../../animation/constants';
+import { dampVisible, FOLLOW_LAMBDA } from '../../../animation/constants';
 
 /**
  * The wrap-around carton being erected around the slug while in transit.
@@ -45,6 +45,8 @@ export const FormedCarton = memo(function FormedCarton({
   const productsRef = useRef<THREE.InstancedMesh>(null);
   const dummy = useMemo(() => new THREE.Object3D(), []);
   const lastGrid = useRef('');
+  const displayX = useRef(x);
+  const displayZ = useRef(z);
   const groupRef = useRef<Group>(null);
   const leftWallRef = useRef<Mesh>(null);
   const rightWallRef = useRef<Mesh>(null);
@@ -55,6 +57,16 @@ export const FormedCarton = memo(function FormedCarton({
   const topSealRightRef = useRef<Mesh>(null);
 
   useFrame((_, delta) => {
+    /*
+     * Position is tracked in refs and updated before the panel guard below, so
+     * it keeps following while the pack is off screen. Previously the guard
+     * returned early when hidden, freezing the pack at last cycle's discharge —
+     * so the next pack appeared at x 16 and slid backwards to the head of the
+     * transport in full view.
+     */
+    displayX.current = dampVisible(displayX.current, x, visible, FOLLOW_LAMBDA, delta);
+    displayZ.current = dampVisible(displayZ.current, z, visible, FOLLOW_LAMBDA * 0.8, delta);
+
     const group = groupRef.current;
     const leftWall = leftWallRef.current;
     const rightWall = rightWallRef.current;
@@ -67,14 +79,13 @@ export const FormedCarton = memo(function FormedCarton({
       return;
     }
 
-    group.position.x = damp(group.position.x, x, FOLLOW_LAMBDA, delta);
     /*
-     * The pack no longer swerves in Z on a reject. `RejectConveyor` already draws
-     * the diverted pack travelling out along the branch, so shifting this one too
-     * put *two* rejected packs on screen at once, on different paths. This one
-     * stays on the transport; the branch owns the divert.
+     * The pack does not swerve in Z on a reject. `RejectConveyor` draws the
+     * diverted pack travelling out along the branch, so shifting this one too put
+     * *two* rejected packs on screen at once, on different paths.
      */
-    group.position.z = damp(group.position.z, z, FOLLOW_LAMBDA * 0.8, delta);
+    group.position.x = displayX.current;
+    group.position.z = displayZ.current;
 
     const sideHeight = lerp(0.01, 1, Math.max(0, (formProgress - 0.12) / 0.88));
     const sideInset = lerp(TRAY_Z / 2 + 0.12, TRAY_Z / 2, formProgress);
