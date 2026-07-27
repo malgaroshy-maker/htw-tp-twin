@@ -28,6 +28,7 @@ import { ChainInfeed } from './scene3d/parts/product/ChainInfeed';
 import { SidePushers } from './scene3d/parts/product/SidePushers';
 import { GroupedLaneFill } from './scene3d/parts/product/GroupedLaneFill';
 import { StopperTerminal } from './scene3d/parts/product/StopperTerminal';
+import { InfeedStation } from './scene3d/parts/product/InfeedStation';
 import { SuctionArm } from './scene3d/parts/blank/SuctionArm';
 import { InnerMagazine } from './scene3d/parts/blank/InnerMagazine';
 import { FlatBlank } from './scene3d/parts/blank/FlatBlank';
@@ -70,11 +71,11 @@ const DEFAULT_LAYERS: ViewerLayerState = {
 
 const CAMERA_PRESETS: Record<CameraPresetKey, { position: [number, number, number]; target: [number, number, number]; zoom: number }> = {
   overview: { position: [20, 18, 22], target: [0.5, 1.9, 1.2], zoom: 19 },
-  grouping: { position: [-1.5, 13.5, 18.5], target: [-7.3, 2.8, 0], zoom: 28 },
-  transfer: { position: [5.4, 12.4, 18.8], target: [0.55, 3.15, 0.2], zoom: 27 },
-  tray: { position: [-2.5, 11.4, 19], target: [-7.3, 1.3, 3.2], zoom: 28 },
-  transport: { position: [16.5, 13.2, 17], target: [8.8, 3, 0], zoom: 27 },
-  discharge: { position: [20, 11.8, 14.5], target: [15.1, 2.8, 0], zoom: 31 },
+  grouping: { position: [-2.0, 13.5, 18.5], target: [-4.6, 2.8, 0], zoom: 26 },
+  transfer: { position: [7.6, 12.4, 18.8], target: [3.3, 3.15, 0.2], zoom: 27 },
+  tray: { position: [-4.0, 11.4, 19], target: [-8.4, 1.3, 3.2], zoom: 27 },
+  transport: { position: [17.3, 13.2, 17], target: [9.6, 3, 0], zoom: 27 },
+  discharge: { position: [21, 11.8, 14.5], target: [16.4, 2.8, 0], zoom: 31 },
 };
 
 
@@ -158,18 +159,18 @@ function MachineScene({
       !model
         ? []
         : [
-            { id: 'mag', position: [-14.2, 0.16, 6], text: 'BLANK MAGAZINE', active: model.phase === 'BLANK_FEED' },
-            { id: 'cross', position: [-9.1, 0.16, 6], text: 'CROSS TRANSFER', active: model.phase === 'BLANK_FEED' },
-            { id: 'withdraw', position: [-5, 0.16, 5.15], text: 'BLANK WITHDRAW', active: model.phase === 'BLANK_FEED' || model.phase === 'TRANSFER' },
-            { id: 'grouping', position: [-7.4, 0.16, -6.6], text: 'SEPARATOR + GROUPING', active: model.phase === 'GROUPING' || model.phase === 'CAPTURED' },
-            { id: 'chain', position: [0.9, 0.16, -6.4], text: 'CHAIN INFEED', active: model.phase === 'TRANSFER' },
-            { id: 'gap', position: [0.35, 0.16, 3.55], text: 'GAP SENSOR + 3D CHECK', active: model.gapSensorActive || model.completenessCameraActive },
-            { id: 'transport', position: [8.8, 0.16, -6.4], text: 'MAIN TRANSPORT', active: model.phase === 'PACKING' || model.phase === 'DISCHARGE' },
-            { id: 'glue', position: [11.1, 0.16, 3.3], text: 'GLUE + GUIDES', active: model.phase === 'PACKING' || model.phase === 'DISCHARGE' },
-            { id: 'outfeed', position: [15.2, 0.16, -3.5], text: 'OUTFEED', active: model.phase === 'DISCHARGE' },
-            { id: 'reject', position: [16.7, 0.16, 5.6], text: 'REJECT CONVEYOR', active: model.rejectCount > 0 || model.rejectActive },
-            { id: 'outlet', position: [15.6, 4.28, 1.35], text: 'OUTLET', active: !model.rejectActive && model.phase === 'DISCHARGE', kind: 'sensor' as const },
-            { id: 'plate', position: [14.9, 4.28, -1.35], text: 'PLATE', active: model.phase === 'DISCHARGE', kind: 'sensor' as const },
+            { id: 'mag', position: [-13.0, 0.16, 7.0], text: 'BLANK MAGAZINE', active: model.phase === 'BLANK_FEED' },
+            { id: 'cross', position: [-7.6, 0.16, 5.9], text: 'CROSS TRANSFER', active: model.phase === 'BLANK_FEED' },
+            { id: 'withdraw', position: [-4.2, 0.16, 4.4], text: 'BLANK WITHDRAW', active: model.phase === 'BLANK_FEED' || model.phase === 'TRANSFER' },
+            { id: 'grouping', position: [-6.0, 0.16, -6.6], text: 'SEPARATOR + GROUPING', active: model.phase === 'GROUPING' || model.phase === 'CAPTURED' },
+            { id: 'chain', position: [3.3, 0.16, -6.4], text: 'CHAIN INFEED', active: model.phase === 'TRANSFER' },
+            { id: 'gap', position: [2.6, 0.16, 2.9], text: 'GAP SENSOR + 3D CHECK', active: model.gapSensorActive || model.completenessCameraActive },
+            { id: 'transport', position: [9.6, 0.16, -6.4], text: 'MAIN TRANSPORT', active: model.phase === 'PACKING' || model.phase === 'DISCHARGE' },
+            { id: 'glue', position: [11.9, 0.16, 2.9], text: 'GLUE + GUIDES', active: model.phase === 'PACKING' || model.phase === 'DISCHARGE' },
+            { id: 'outfeed', position: [16.4, 0.16, -3.5], text: 'OUTFEED', active: model.phase === 'DISCHARGE' },
+            { id: 'reject', position: [17.9, 0.16, 5.6], text: 'REJECT CONVEYOR', active: model.rejectCount > 0 || model.rejectActive },
+            { id: 'outlet', position: [16.7, 4.28, 1.35], text: 'OUTLET', active: !model.rejectActive && model.phase === 'DISCHARGE', kind: 'sensor' as const },
+            { id: 'plate', position: [16.0, 4.28, -1.35], text: 'PLATE', active: model.phase === 'DISCHARGE', kind: 'sensor' as const },
     ],
     [model]
   );
@@ -226,21 +227,25 @@ function MachineScene({
           />
           <BlankLiftPath />
           <BlankDrivers running={model.machineState === 'RUNNING' || model.machineState === 'RUN_EMPTY'} />
-          <FlowArrow position={[-11.4, 1.32, zones.blankMagazine.z]} length={3.6} active={phaseActive('BLANK_FEED')} color="#F59E0B" />
-          <FlowArrow position={[-4.4, 1.18, blankPath.z]} length={11.8} active={phaseActive('BLANK_FEED') || phaseActive('TRANSFER')} color="#F59E0B" />
+          <FlowArrow position={[-10.0, 1.32, zones.blankMagazine.z]} length={4.4} active={phaseActive('BLANK_FEED')} color="#F59E0B" />
+          <FlowArrow position={[-2.6, 1.18, blankPath.z]} length={12.6} active={phaseActive('BLANK_FEED') || phaseActive('TRANSFER')} color="#F59E0B" />
           <FlatBlank visible={model.blankVisible} x={model.blankX} z={model.blankZ} />
         </group>
       )}
 
       {layerVisibility.product && (
         <group>
-          <FlowArrow position={[-8.1, 0.09, -6.1]} length={9.6} active={phaseActive('GROUPING') || phaseActive('CAPTURED')} color="#10B981" />
+          <FlowArrow position={[-9.0, 0.09, -6.1]} length={11.0} active={phaseActive('GROUPING') || phaseActive('CAPTURED')} color="#10B981" />
           {Array.from({ length: model.rowCount }).map((_, lane) => {
             const z = lerp(-2.55, 2.55, model.rowCount === 1 ? 0.5 : lane / (model.rowCount - 1));
             return (
               <Box key={lane} mat="frame" pos={[zones.grouping.x, 2.55, z]} size={[zones.grouping.width - 0.2, 0.1, 0.08]} receiveShadow />
             );
           })}
+          <InfeedStation
+            running={model.machineState === 'RUNNING' || model.machineState === 'RUN_EMPTY'}
+            minJamReached={model.groupedCount > 0}
+          />
           <GroupedLaneFill laneFillCounts={model.laneFillCounts} rowCount={model.rowCount} colCount={model.colCount} />
           <StopperTerminal stopperClosed={model.stopperClosed} terminalClosed={model.terminalClosed} />
           <ProductSlug
@@ -258,13 +263,15 @@ function MachineScene({
             progress={model.chainInfeedOffset}
             gapSensorActive={model.gapSensorActive}
             completenessCameraActive={model.completenessCameraActive}
+            slugX={model.slugX}
+            pushing={model.phase === 'TRANSFER'}
           />
         </group>
       )}
 
       {layerVisibility.transport && (
         <group>
-          <FlowArrow position={[8.5, 0.09, -5.9]} length={13.4} active={phaseActive('PACKING') || phaseActive('DISCHARGE')} color="#38BDF8" />
+          <FlowArrow position={[9.3, 0.09, -5.9]} length={13.4} active={phaseActive('PACKING') || phaseActive('DISCHARGE')} color="#38BDF8" />
           <TransportBed />
           <TransportGuides />
           <GlueStation glueActive={model.glueActive} guideActive={model.guideActive} />
@@ -293,8 +300,8 @@ function MachineScene({
 
       {layerVisibility.sensors && (
         <group>
-          <SensorPost position={[15.6, 3.08, 1.35]} active={!model.rejectActive && model.phase === 'DISCHARGE'} />
-          <SensorPost position={[14.9, 3.08, -1.35]} active={model.phase === 'DISCHARGE'} />
+          <SensorPost position={[16.7, 3.08, 1.35]} active={!model.rejectActive && model.phase === 'DISCHARGE'} />
+          <SensorPost position={[16.0, 3.08, -1.35]} active={model.phase === 'DISCHARGE'} />
           <LabelProjector labels={sceneLabels} containerRef={labelContainerRef} />
         </group>
       )}

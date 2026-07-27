@@ -22,7 +22,7 @@ const [, TRAY_Z] = TRAY_SIZE_3D;
  * The blade is a torus arc so the fold reads as a sweep rather than a scale.
  */
 
-const FOLDER_X = 12.4;
+const FOLDER_X = 13.2;
 const BLADE_RADIUS = 0.42;
 const OPEN_ANGLE = 0;
 const CLOSED_ANGLE = -0.7;

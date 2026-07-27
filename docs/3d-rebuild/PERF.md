@@ -367,6 +367,50 @@ blade travel, shared by `GroupedLaneFill` and `StopperTerminal`. Previously each
 computed the stopper position independently, so a product could come to rest
 where the blade was not.
 
+### Station positions checked against the plan view
+
+Each station centre was normalised along the machine body and compared with the
+OEM plan view (OI 5-3). The scene was measurably wrong:
+
+| Station | Plan | Was | Error |
+|---|---|---|---|
+| Feeding 5-7 | 0.00 | 0.16 | +0.16 |
+| Grouping 5-11 | 0.24 | 0.37 | +0.14 |
+| Blank magazine 5-25 | 0.22 | 0.09 | **-0.13** |
+| Chain infeed 5-17 | 0.58 | 0.51 | -0.07 |
+| Flap detection 5-51 | 0.98 | 0.92 | -0.06 |
+| Main transport 5-37 | 0.70 | 0.73 | +0.03 |
+
+(Fractions of machine length. The magazine was a seventh of the whole machine
+too far upstream, sitting beside the infeed instead of alongside the grouping
+section as the drawing shows.)
+
+Positions corrected throughout `MACHINE_LAYOUT_3D`, with the decks, camera
+presets, flow arrows, label anchors and the components that carried hardcoded X
+values all moved to match.
+
+### Feeding and blast station added
+
+Correcting the positions left the head of the machine empty, because the
+**feeding conveyor (OI 5-7) and blast station (OI 5-5) were never modelled at
+all**. `InfeedStation` adds the infeed belt with its side guides and support
+frame, the blast device and its compressed-air reservoir, and the four sensors
+that station actually has: transfer, "min. jam", and the upper/lower fall-over
+stop pair.
+
+### Motion coupling
+
+Two mechanisms animated independently of the thing they act on:
+
+- **Pusher plates swept through empty air.** The chain loop advanced on cycle
+  progress while the formation moved on its own timing. During `TRANSFER` the
+  loop phase is now solved from the slug's live X (`phaseAtLowerRunX` inverts
+  the loop path for the straight working run), so a plate sits behind the
+  formation it is pushing.
+- **Products appeared at the head of the lane.** They now enter just downstream
+  of the divider carriage, so they read as having been placed by it.
+  `DIVIDER_X` is shared between the divider and the lane entry.
+
 ### Harness additions
 
 - `phase-packing.png`: the harness now ticks until `cycle_phase === 'PACKING'`

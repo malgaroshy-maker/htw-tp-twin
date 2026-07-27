@@ -4,6 +4,7 @@ import type { Group } from 'three';
 import { Box } from '../../core/primitives';
 import { getLaneZ3D } from '../../../machineLayout';
 import { damp, FOLLOW_LAMBDA } from '../../../animation/constants';
+import { DIVIDER_X } from './groupingGeometry';
 import { materials } from '../../core/materials';
 import { useMergedParts } from '../../core/useMergedParts';
 
@@ -63,7 +64,7 @@ export const DividerModule = memo(function DividerModule({
   const mats = materials();
 
   return (
-    <group position={[-10.55, 3.22, 0]}>
+    <group position={[DIVIDER_X, 3.22, 0]}>
       {statics.map((g) => (
         <mesh key={g.key} geometry={g.geometry} material={mats[g.mat]} receiveShadow />
       ))}

@@ -106,12 +106,12 @@ const STATIC_PARTS: StaticPart[] = [
   {
     mat: 'deckMatte',
     size: [zones.grouping.width + 2.2, 0.24, zones.grouping.depth + 0.8],
-    pos: [-8.8, 2.44, 0],
+    pos: [-4.6, 2.44, 0],
     radius: 0.15,
     ...RECEIVE,
   },
-  { mat: 'deckMatte', size: [6.8, 0.24, 4.9], pos: [0.85, 2.48, 0], radius: 0.12, ...RECEIVE },
-  { mat: 'deckMatte', size: [12.6, 0.24, 4.6], pos: [10.7, 2.5, 0], radius: 0.12, ...RECEIVE },
+  { mat: 'deckMatte', size: [6.8, 0.24, 4.9], pos: [3.2, 2.48, 0], radius: 0.12, ...RECEIVE },
+  { mat: 'deckMatte', size: [12.6, 0.24, 4.6], pos: [11.5, 2.5, 0], radius: 0.12, ...RECEIVE },
   {
     mat: 'deckMatte',
     size: [zones.blankMagazine.width + 0.4, 0.22, zones.blankMagazine.depth + 0.3],
@@ -135,18 +135,18 @@ const STATIC_PARTS: StaticPart[] = [
   },
 
   // Divider bed and transfer bed
-  { mat: 'frame', size: [1.3, 0.22, 5.8], pos: [-10.8, 2.88, 0], ...CAST },
-  { mat: 'frame', size: [0.28, 0.34, 4.4], pos: [1.45, 2.88, 0], ...CAST },
+  { mat: 'frame', size: [1.3, 0.22, 5.8], pos: [-12.3, 2.88, 0], ...CAST },
+  { mat: 'frame', size: [0.28, 0.34, 4.4], pos: [3.8, 2.88, 0], ...CAST },
   ...[-1.5, 1.5].map((z) => ({
     mat: 'frameDark' as const,
     size: [4.8, 0.12, 0.3] as [number, number, number],
-    pos: [1.25, 2.94, z] as [number, number, number],
+    pos: [3.6, 2.94, z] as [number, number, number],
     ...CAST,
   })),
   ...[-1.88, 1.88].map((z) => ({
     mat: 'frame' as const,
     size: [12.1, 0.18, 0.18] as [number, number, number],
-    pos: [10.8, 3.08, z] as [number, number, number],
+    pos: [11.6, 3.08, z] as [number, number, number],
     ...CAST,
   })),
 ];

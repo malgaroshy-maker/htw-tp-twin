@@ -152,16 +152,38 @@ const STATIC_PARTS: StaticPart[] = [
   })),
 ];
 
+/**
+ * Phase at which a plate sits at world X on the lower (working) run.
+ *
+ * Inverts `loopPoint` for the straight lower section, which is the only part of
+ * the loop that touches product.
+ */
+function phaseAtLowerRunX(x: number) {
+  const { cx, halfW, halfH, radius } = LOOP;
+  const straightX = 2 * (halfW - radius);
+  const straightY = 2 * (halfH - radius);
+  const arc = (Math.PI / 2) * radius;
+  const perimeter = 2 * straightX + 2 * straightY + 4 * arc;
+  const d = Math.max(0, Math.min(straightX, x - (cx - halfW + radius)));
+  return d / perimeter;
+}
+
 export const ChainInfeed = memo(function ChainInfeed({
   active,
   progress,
   gapSensorActive,
   completenessCameraActive,
+  slugX,
+  pushing,
 }: {
   active: boolean;
   progress: number;
   gapSensorActive: boolean;
   completenessCameraActive: boolean;
+  /** Live X of the formation being pushed. */
+  slugX: number;
+  /** True while the formation is actually being driven onto the tray. */
+  pushing: boolean;
 }) {
   const plateRefs = useRef<(Mesh | null)[]>([]);
   const phase = useRef(0);
@@ -173,7 +195,14 @@ export const ChainInfeed = memo(function ChainInfeed({
     // clock so the plates stay in step with the formation they are pushing.
     // Accumulating the delta (rather than assigning progress) keeps the motion
     // continuous across the wrap at the end of each cycle.
-    if (active) {
+    if (pushing) {
+      // Lock the loop so a plate sits just behind the formation. Previously the
+      // plates and the slug were timed independently, so the plates swept
+      // through empty air while the formation moved on its own.
+      const wanted = phaseAtLowerRunX(slugX - 1.1);
+      const nearest = Math.round(phase.current * PLATE_COUNT) / PLATE_COUNT;
+      phase.current = nearest + (wanted - Math.floor(wanted * PLATE_COUNT) / PLATE_COUNT);
+    } else if (active) {
       let step = progress - lastProgress.current;
       if (step < -0.5) step += 1; // wrapped
       if (step > 0) phase.current += step;

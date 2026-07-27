@@ -36,5 +36,11 @@ export function slotX(slot: number) {
   return STOPPER_X - 0.35 - slot * SLOT_PITCH;
 }
 
-/** Where a newly divided product enters the lane, upstream of the queue. */
-export const LANE_ENTRY_X = zones.grouping.x - zones.grouping.width / 2 - 0.4;
+/**
+ * Where a newly divided product enters the lane.
+ *
+ * Sits just downstream of the divider carriage, so a product eases away from
+ * the divider that placed it rather than appearing at the head of the lane.
+ */
+export const DIVIDER_X = -12.3;
+export const LANE_ENTRY_X = DIVIDER_X + 1.2;

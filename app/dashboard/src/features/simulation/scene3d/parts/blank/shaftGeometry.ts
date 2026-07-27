@@ -4,7 +4,7 @@ import { MACHINE_LAYOUT_3D } from '../../../machineLayout';
  * Geometry of the inner blank guide shaft, shared between the shaft itself and
  * the suction arm that draws blanks down out of it.
  */
-export const SHAFT_X = -4.1;
+export const SHAFT_X = -5.6;
 export const SHAFT_Z = MACHINE_LAYOUT_3D.blankPath.z;
 /** Bottom opening — the arm's cups meet the lowest blank here. */
 export const MOUTH_Y = 1.72;

@@ -12,11 +12,11 @@ const { deckHeights } = MACHINE_LAYOUT_3D;
 
 /** [x, z] of each horizontal applicator head (OI 5-38 item 7). */
 const GLUE_HEADS: [number, number][] = [
-  [7.4, 1.55],
-  [8.8, 1.55],
-  [10.2, 1.55],
-  [8.1, -1.55],
-  [9.5, -1.55],
+  [8.2, 1.55],
+  [9.6, 1.55],
+  [11.0, 1.55],
+  [8.9, -1.55],
+  [10.3, -1.55],
 ];
 
 /**
@@ -25,8 +25,8 @@ const GLUE_HEADS: [number, number][] = [
  * their own tray sensor ("Tray sensor release crosswise gluing").
  */
 const VERTICAL_GLUE_HEADS: [number, number][] = [
-  [11.4, 1.95],
-  [11.4, -1.95],
+  [12.2, 1.95],
+  [12.2, -1.95],
 ];
 
 /**
@@ -84,12 +84,12 @@ export const GlueStation = memo(function GlueStation({
     <group>
       {/* Glue guide rails */}
       {[2.08, -2.08].map((z) => (
-        <Box key={`glue-rail-${z}`} mat="glueRail" pos={[10.2, deckHeights.guides, z]} size={[10.8, 0.14, 0.14]} castShadow receiveShadow />
+        <Box key={`glue-rail-${z}`} mat="glueRail" pos={[11.0, deckHeights.guides, z]} size={[10.8, 0.14, 0.14]} castShadow receiveShadow />
       ))}
 
       {/* Closing guides */}
       {[2.1, -2.1].map((z) => (
-        <Box key={`closing-guide-${z}`} mat="clampBar" pos={[10.2, 3.32, z]} size={[10.8, 0.14, 0.14]} castShadow receiveShadow />
+        <Box key={`closing-guide-${z}`} mat="clampBar" pos={[11.0, 3.32, z]} size={[10.8, 0.14, 0.14]} castShadow receiveShadow />
       ))}
 
       {/*
