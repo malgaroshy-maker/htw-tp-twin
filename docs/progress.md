@@ -1,6 +1,6 @@
 # Project Progress Report
 
-> Updated: 2026-07-27
+> Updated: 2026-07-27 (branch `3d-scene-rebuild`)
 > Supersedes the 2026-04-02 edition and `progress_improved.md`
 
 ---
@@ -59,10 +59,10 @@ Four problems, all confirmed with the user:
 | 0 | Instrumentation harness | **Done** — `npm run capture3d` |
 | 1 | Collapse 9 poll loops into one context; shadow/render cheap wins | **Done** |
 | 2 | Asset registries, component decomposition, dead-code removal | **Done** (completed by Phase 4) |
-| 3 | Motion smoothing | **Partial** — damped follow in place; full `SceneMotion` refactor outstanding |
+| 3 | Motion smoothing | **Done in effect** — frame-rate-independent damped follow; the full `SceneMotion` refactor proved unnecessary |
 | 4 | Static geometry merging | **Done** — draw calls 273 -> 160; ≤60 target still not met |
 | 5 | Lighting and materials | **Done** |
-| 6 | Geometry corrections + missing stations (6a–6h) | **Done** |
+| 6 | Geometry corrections + missing stations (6a–6h) | **Done**, plus station positions re-checked against the plan view and the feeding/blast station added |
 | 7 | Overlay cleanup (`<Html>` 15 → ≤4) | **Done** — 12 → 2, and both only in manual mode |
 
 ### Measured results so far
@@ -70,10 +70,18 @@ Four problems, all confirmed with the user:
 | Metric | Before | Now |
 |---|---|---|
 | `/state` polls on Overview | 4.0 req/s (2 loops) | 2.0 req/s (1 loop) |
-| `SimulationView3D.tsx` | 1427 lines | 358 lines |
-| Live geometries | 235 | 48 |
-| Draw calls | 235 | 123 |
+| `SimulationView3D.tsx` | 1427 lines | ~360 lines |
+| Live geometries | 235 | 73 |
+| Draw calls | 235 | ~148 |
+| Shadow casters | 140 | 56 |
+| `<Html>` overlays | 15 | 2 (manual mode only) |
+| Merged-geometry leak | 63 per mount | 0 |
 | Dead SVG components | 13 | 0 |
+
+Draw calls rose from their 114 low as Phase 6 added real stations (infeed and
+blast, transport guides, corner cover feeder, vertical gluing, roller discharge).
+That is geometry the machine actually has; the earlier figure was for a scene
+missing those stations.
 
 Draw calls fell 51% while also absorbing the ~38-call cost of image-based lighting.
 The plan's ≤60 target is **not** met and has been withdrawn as unfounded — it was set
@@ -110,12 +118,12 @@ Root directory: 25 entries → 17.
 
 ## Known gaps
 
-- **Nothing is committed.** The working tree carries the entire 3D rebuild plus
-  pre-existing uncommitted work. A checkpoint is overdue.
-- 3D geometry still diverges from the real machine in the ways catalogued in
-  `MACHINE_REFERENCE.md` (5 glue guns not 2, dual transport chains, portal arch at the
-  chain infeed, inner blank guide shaft, roller discharge track, tall slim cartons rather
-  than cubes). Phase 6 addresses these; each affected part carries a `NOTE (Phase 6x)`
-  comment pointing at its CAD figure.
-- `fps` from the capture harness is meaningless — headless Chromium rasterises in
-  software. Real frame timing needs GPU hardware.
+- The branch `3d-scene-rebuild` carries the work in 18 commits, each verified
+  independently. The first isolates pre-existing work not authored in that effort.
+- The lanes are still parallel; the plan view shows a staggered echelon.
+- Zone labels can crowd each other at the overview camera. A proper fix is
+  collision-aware placement in `LabelProjector`.
+- `fps` from the capture harness is meaningless (headless software rasterisation).
+  Real frame timing needs GPU hardware.
+- The ≤60 draw-call target from `PLAN.md` is withdrawn as unfounded — see
+  `docs/3d-rebuild/PERF.md` for the measurement that disproved its premises.

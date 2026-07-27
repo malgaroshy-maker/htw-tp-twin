@@ -11,15 +11,40 @@ Optimizing and rebuilding the 3D tray packer scene
 | `media/` | Pages rendered from `docs/365257_18_OI.pdf` at 150 dpi — the CAD figures the geometry work is checked against |
 | `captures/` | Harness output (gitignored — regenerate with `npm run capture3d`) |
 
-## Phase status
+## Phase status — all complete
 
-Done: 0 (instrumentation) · 1 (poll loops) · 2 (registries + decomposition) ·
-4 (static merging) · 5 (lighting)
-Partial: 3 (motion — damped follow in, full `SceneMotion` refactor out)
-Not started: 6 (geometry corrections) · 7 (overlay cleanup)
+| Phase | |
+|---|---|
+| 0 | Instrumentation harness (`npm run capture3d`) |
+| 1 | Nine poll loops collapsed to one context |
+| 2 | Asset registries, decomposition, dead code removed |
+| 3 | Frame-rate-independent damped motion |
+| 4 | Static geometry merging |
+| 5 | Environment lighting, no CDN dependency |
+| 6 | Geometry corrected against the OEM figures; missing stations added |
+| 7 | Labels projected into a DOM layer outside the Canvas |
 
-Draw calls 235 → 160, geometries 235 → 48, SimulationView3D.tsx 1427 → 358 lines.
-The ≤60 draw-call target is **not** met — see PERF.md for what still stands in the way.
+`SimulationView3D.tsx` 1427 → ~360 lines · geometries 235 → 73 · shadow casters
+140 → 56 · `<Html>` 15 → 2 · geometry leak 63/mount → 0.
+
+The plan's ≤60 draw-call target is **withdrawn as unfounded** — it was set before
+measurement, on two premises that measurement disproved. See `PERF.md`.
+
+## Working on this scene
+
+Read `../../app/dashboard/src/features/simulation/scene3d/README.md` first — it
+carries the rules (never declare an inline material or geometry; binary state
+swaps two registry materials; merged geometry goes through `useMergedParts`).
+
+Verify with:
+
+```bash
+cd app/dashboard
+npm run typecheck   # tsc -b --force. `npx tsc --noEmit` is a NO-OP here: the
+                    # root tsconfig is solution-style and checks zero files.
+npm run lint
+npm run capture3d   # poll rate, renderer counters, captures, leak check
+```
 
 ## media/ index
 
