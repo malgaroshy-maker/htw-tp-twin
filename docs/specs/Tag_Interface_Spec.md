@@ -191,7 +191,7 @@ These are the most important status outputs.
 | STS_MACHINE_MODE | enum/string | Machine -> Observer | AUTO or MANUAL |
 | STS_READY_TO_START | bool | Machine -> Observer | All start permissives valid |
 | STS_CYCLE_ACTIVE | bool | Machine -> Observer | Internal pack cycle in progress |
-| STS_CYCLE_PHASE | enum/string | Machine -> Observer | IDLE, GROUPING, BLANK_FEED, PACKING, DISCHARGE |
+| STS_CYCLE_PHASE | enum/string | Machine -> Observer | IDLE, GROUPING, CAPTURED, BLANK_FEED, TRANSFER, PACKING, DISCHARGE |
 | STS_FAULT_ACTIVE | bool | Machine -> Observer | Any active fault present |
 | STS_WARNING_ACTIVE | bool | Machine -> Observer | Any active warning present |
 | STS_RUN_EMPTY_ACTIVE | bool | Machine -> Observer | Run-empty logic active |
@@ -218,7 +218,9 @@ Allowed values:
 Allowed values:
 - IDLE
 - GROUPING
+- CAPTURED
 - BLANK_FEED
+- TRANSFER
 - PACKING
 - DISCHARGE
 

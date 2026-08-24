@@ -161,7 +161,7 @@ These are the core machine behavior outputs.
 | DB_STS.MachineMode | String / Int | PLC/Simulator -> HMI | AUTO or MANUAL |
 | DB_STS.ReadyToStart | Bool | PLC/Simulator -> HMI | Consolidated readiness |
 | DB_STS.CycleActive | Bool | Simulator -> PLC/HMI | Pack cycle in progress |
-| DB_STS.CyclePhase | String / Int | Simulator -> PLC/HMI | IDLE, GROUPING, BLANK_FEED, PACKING, DISCHARGE |
+| DB_STS.CyclePhase | String / Int | Simulator -> PLC/HMI | IDLE, GROUPING, CAPTURED, BLANK_FEED, TRANSFER, PACKING, DISCHARGE |
 | DB_STS.FaultActive | Bool | Simulator -> PLC/HMI | Active machine-stopping fault |
 | DB_STS.WarningActive | Bool | Simulator -> PLC/HMI | Active warning present |
 | DB_STS.RunEmptyActive | Bool | Simulator -> PLC/HMI | Run-empty currently active |
@@ -344,7 +344,9 @@ Possible values:
 Possible values:
 - `IDLE`
 - `GROUPING`
+- `CAPTURED`
 - `BLANK_FEED`
+- `TRANSFER`
 - `PACKING`
 - `DISCHARGE`
 

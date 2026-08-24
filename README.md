@@ -2,7 +2,7 @@
 
 ![Python](https://img.shields.io/badge/Python-3.12-blue?style=flat-square&logo=python)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-009688?style=flat-square&logo=fastapi)
-![React](https://img.shields.io/badge/React-18-61DAFB?style=flat-square&logo=react)
+![React](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react)
 ![Tailwind](https://img.shields.io/badge/Tailwind_CSS-4.0-38B2AC?style=flat-square&logo=tailwind-css)
 ![Gemini](https://img.shields.io/badge/Google_Gemini-AI-8E75B2?style=flat-square&logo=google)
 
@@ -16,9 +16,10 @@ A simplified industrial tray packer digital twin platform. This project combines
 
 *   **Behavioral Simulator**: A discrete-event Python engine modeling machine states, cycle phases, product grouping, and probabilistic faults/rejects based on configurable recipes.
 *   **PLC-Style Control**: Strict separation of concerns. A controller layer manages start permissives, reset gating, and HMI helper flags, ensuring the simulator acts only as the execution layer.
-*   **Modern HMI Dashboard**: A dark-themed, industrial React/Tailwind interface providing live telemetry, production counters, fault banners, and machine control.
+*   **Modern HMI Dashboard**: A dark-themed, industrial React/Tailwind interface providing live telemetry, production counters, fault banners, machine control, and animated 2D top-down and 3D machine visualizations.
 *   **AI Assistant (Gemini)**: An integrated AI panel that reads structured machine tags and event logs to explain current states, analyze faults, and generate session summaries.
 *   **Training Scenarios**: A deterministic scenario engine that can inject faults or alter machine conditions (e.g., starvation, blockages) over time for operator training.
+*   **Session Persistence**: Events and session records are written through to a local SQLite store (`data/events.db`) for history browsing and reporting.
 
 ---
 
@@ -100,7 +101,7 @@ Open your browser to `http://localhost:5173` to view the HMI.
 ## ⚠️ Current Limitations
 
 As a V1 portfolio project, this platform has a few intentional limitations:
-*   **In-Memory Storage**: Event logs and session data are stored in memory. Restarting the API server clears all history.
+*   **In-Process State**: Live tags, counters, and the event buffer live in the API process; only events/sessions are persisted to SQLite (`data/events.db`), so restarting resets counters and spawns a new session.
 *   **No Real-Time Physics**: Cycle times and grouping are based on timers and probabilities, not 3D collision or servo kinematics.
 *   **Polling vs. WebSockets**: The dashboard currently polls the API at 2Hz for state updates to keep the architecture simple.
 *   **No Physical Hardware**: There is no actual PLC (e.g., Siemens S7) connected yet.
@@ -111,6 +112,6 @@ As a V1 portfolio project, this platform has a few intentional limitations:
 
 Future phases planned for this project:
 1.  **Industrial Protocol Bridge**: Add an OPC UA server to expose the `TagStore` to real PLCs or SCADA systems.
-2.  **Persistence**: Replace the in-memory `EventLogger` with SQLite or PostgreSQL.
+2.  **Persistence Hardening**: Retention policies, richer session queries, optional PostgreSQL backend beyond the existing SQLite store.
 3.  **Advanced Analytics**: Add trend charts (e.g., OEE, downtime by cause) to the dashboard.
 4.  **Multi-Machine Line**: Expand the simulator to handle upstream/downstream machine interactions.

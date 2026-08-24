@@ -131,20 +131,33 @@ Products are being accumulated toward recipe target count.
 - Incoming products fill the grouping buffer
 - When target count is reached, machine becomes cycle-ready
 
+### CAPTURED
+The completed product formation is captured and held at the stopper/terminal.
+- Waits for the transfer zone to be clear
+- Verifies blank availability before committing to a cycle (BLANK_MISSING fault if unavailable)
+- Short fixed capture delay, then transitions to BLANK_FEED
+
 ### BLANK_FEED
 A carton blank is requested and moved into position.
-- Simplified time delay
+- Internal sub-sequence: magazine check → suction → position → ready
 - Fails if blank supply unavailable
+- One blank is consumed when positioned
+
+### TRANSFER
+The positioned blank is moved from the feed position into the pack zone.
+- Requires the transfer interlock (gap clear) and tray-in-transport sensor
+- Simplified time delay
 
 ### PACKING
 Grouped products are merged with blank.
 - Simplified pack creation phase
-- Reject and fault logic may trigger here
+- Reject and fault logic may trigger here (jam probability evaluated at end of phase)
 
 ### DISCHARGE
 Pack exits the machine.
-- Good pack goes to outfeed
-- Rejected pack goes to reject path
+- Internal sub-sequence: outlet check → quality decision → good travel / reject divert
+- Good pack goes to outfeed; rejected pack goes to reject path
+- Reject accumulation is tracked (near-full warning at 2, latching REJECT_BIN_FULL fault at 3)
 
 These phases are internal sub-states, not top-level machine states.
 
@@ -312,6 +325,18 @@ The project should start with these event types:
 ### OPEN_FLAP
 - Cause: simulated packaging defect
 - Top-level effect: reject only
+
+### REJECT_BIN_NEAR_FULL
+- Cause: 2 rejected packs accumulated in reject bin
+- Top-level effect: warning only (production continues)
+
+### REJECT_BIN_FULL
+- Cause: 3 rejected packs accumulated in reject bin
+- Top-level effect: FAULTED; reset denied until reject bin is cleared
+
+### TRANSPORT_CHAIN_GAP
+- Cause: transport chain clearance violation detected at discharge outlet check
+- Top-level effect: FAULTED
 
 ---
 

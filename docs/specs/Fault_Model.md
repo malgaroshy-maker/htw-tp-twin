@@ -174,6 +174,12 @@ The first implementation should include the following core abnormalities.
 5. Incomplete Pack
 6. Open Flap
 
+The implemented configuration additionally defines:
+
+7. Reject Bin Near Full (warning at 2 accumulated rejects)
+8. Reject Bin Full (latching fault at 3 accumulated rejects; reset denied until bin cleared)
+9. Transport Chain Gap (clearance violation at discharge outlet check)
+
 These are enough to produce believable behavior and useful analytics.
 
 ---
@@ -513,6 +519,25 @@ Recovery is not needed because production continues.
 | GAP_CONTROL_JAM | Stopping fault | FAULT | FAULTED | Yes | No |
 | INCOMPLETE_PACK | Reject-only | WARNING | No state stop | No | Yes |
 | OPEN_FLAP | Reject-only | WARNING | No state stop | No | Yes |
+| REJECT_BIN_NEAR_FULL | Production interruption | WARNING | No state stop | No | No |
+| REJECT_BIN_FULL | Stopping fault | FAULT | FAULTED | Yes (bin must be cleared first) | No |
+| TRANSPORT_CHAIN_GAP | Stopping fault | FAULT | FAULTED | Yes | No |
+
+---
+
+## 13.1 Warning Escalation Model
+
+The simulator implements a two-stage blank shortage warning system:
+
+| Warning | Trigger | Machine Effect | Escalation |
+|---|---|---|---|
+| `BLANK_LOW` | Blanks remaining at or below 20 | Warning banner only; production continues | Clears automatically on refill |
+| `BLANK_EMPTY` | Blank magazine empty or supply unavailable while producing | Warning banner only; production continues | Escalates to latched `BLANK_MISSING` fault after 3 consecutive unresolved production cycles |
+
+Rules:
+- Warnings auto-clear when the underlying condition resolves.
+- A latched fault supersedes any active warning.
+- Refilling blanks restores material but does NOT auto-clear a latched `BLANK_MISSING`; the operator must still press Reset.
 
 ---
 

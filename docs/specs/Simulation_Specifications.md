@@ -224,10 +224,11 @@ Within RUNNING and RUN_EMPTY, the machine uses simplified internal phases:
 
 - **IDLE**
 - **GROUPING**
+- **CAPTURED**
 - **BLANK_FEED**
+- **TRANSFER**
 - **PACKING**
 - **DISCHARGE**
-- **REJECT_DISCHARGE**
 
 ### Phase Descriptions
 
@@ -237,17 +238,20 @@ Waiting for required grouped product and start conditions.
 #### GROUPING
 Products accumulate into the required pack pattern for the selected recipe.
 
+#### CAPTURED
+The completed formation is captured and held at the stopper/terminal while transfer clearance and blank availability are verified.
+
 #### BLANK_FEED
 A blank is requested and visually introduced into the pack zone.
+
+#### TRANSFER
+The positioned blank is moved from the feed position into the pack zone.
 
 #### PACKING
 Grouped product is combined with the blank to create a pack result.
 
 #### DISCHARGE
-A good pack exits via the normal outfeed.
-
-#### REJECT_DISCHARGE
-A bad pack exits via the reject path.
+The pack exits via the normal outfeed or, if rejected, is diverted to the reject path. Reject handling occurs inside this phase (outlet check → quality decision → good travel / reject divert), not as a separate phase.
 
 ---
 
@@ -256,16 +260,17 @@ Each simulated pack cycle follows this logic:
 
 1. Verify machine is in RUNNING or RUN_EMPTY.
 2. Verify grouped product count meets recipe requirement.
-3. Verify blank availability.
-4. Verify downstream availability.
+3. Capture the completed formation (CAPTURED).
+4. Verify blank availability (BLANK_MISSING fault if unavailable).
 5. Enter BLANK_FEED phase.
-6. After blank feed delay, enter PACKING phase.
-7. After packing delay:
+6. After blank feed delay, enter TRANSFER phase.
+7. After transfer delay, enter PACKING phase.
+8. After packing delay:
    - determine outcome: good pack, reject, or fault
-8. If good pack, send output to outfeed.
-9. If reject, send output to reject path.
-10. If stopping fault occurs, transition to FAULTED.
-11. Return to IDLE and repeat.
+9. If good pack, send output to outfeed.
+10. If reject, divert output to reject path during DISCHARGE.
+11. If stopping fault occurs, transition to FAULTED.
+12. Return to IDLE and repeat.
 
 ### V1 Behavior Goal
 The machine should **look continuous and industrial**, even though internally it is modeled as simplified staged events.
