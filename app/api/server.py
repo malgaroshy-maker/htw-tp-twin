@@ -1,7 +1,9 @@
+import asyncio
 import uuid
+from datetime import datetime, timezone
 from typing import Any, Optional
 
-from fastapi import FastAPI, Query, HTTPException
+from fastapi import FastAPI, Query, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -110,6 +112,33 @@ def get_state() -> dict:
     return TAGS.snapshot()
 
 
+# Push rate for the WebSocket state stream (5 Hz)
+WS_PUSH_INTERVAL_SEC = 0.2
+
+
+@app.websocket("/ws/state")
+async def ws_state(websocket: WebSocket) -> None:
+    """Stream live machine snapshots and recent events to connected clients.
+
+    Replaces dashboard polling: each message carries the full tag snapshot and
+    the most recent events. Commands remain HTTP request/response.
+    """
+    await websocket.accept()
+    try:
+        while True:
+            events = SIM.event_logger.get_recent(5)
+            payload = {
+                "type": "state",
+                "ts": datetime.now(timezone.utc).isoformat(),
+                "state": TAGS.snapshot(),
+                "events": [e.__dict__ for e in reversed(events)],
+            }
+            await websocket.send_json(payload)
+            await asyncio.sleep(WS_PUSH_INTERVAL_SEC)
+    except WebSocketDisconnect:
+        pass
+
+
 @app.get("/events")
 def get_events(limit: int = Query(50, ge=1)) -> dict:
     """Return recent structured events, newest first."""
@@ -181,7 +210,6 @@ def recipe(req: RecipeRequest) -> dict:
 @app.post("/recipe/update")
 def update_recipe(req: UpdateRecipeRequest) -> dict:
     import json
-    from app.simulator.config_loader import load_recipes
     
     # Check if recipe exists
     if req.recipe_id not in SIM.ctx.recipes:
@@ -196,7 +224,6 @@ def update_recipe(req: UpdateRecipeRequest) -> dict:
             setattr(recipe, key, value)
             
     # Load raw JSON directly and update it
-    import os
     recipes_path = "configs/recipes.json"
     try:
         with open(recipes_path, 'r', encoding='utf-8') as f:

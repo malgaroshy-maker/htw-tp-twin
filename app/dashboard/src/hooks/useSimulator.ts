@@ -37,30 +37,6 @@ export function useSimulatorStore() {
   
   const autoTickIntervalRef = useRef<number | null>(null);
 
-  const fetchState = useCallback(async () => {
-    try {
-      const response = await fetch(`${API_BASE}/state`);
-      if (!response.ok) throw new Error('Failed to fetch state');
-      const data = await response.json();
-      setState(data);
-      setIsCommsHealthy(true);
-    } catch (err) {
-      console.error('Comms error:', err);
-      setIsCommsHealthy(false);
-    }
-  }, []);
-
-  const fetchEvents = useCallback(async () => {
-    try {
-      const response = await fetch(`${API_BASE}/events?limit=5`);
-      if (!response.ok) throw new Error('Failed to fetch events');
-      const data = await response.json();
-      setEvents(data.events);
-    } catch (err) {
-      console.error('Failed to fetch events:', err);
-    }
-  }, []);
-
   const fetchScenarios = useCallback(async () => {
     try {
       const response = await fetch(`${API_BASE}/scenarios`);
@@ -221,31 +197,56 @@ export function useSimulatorStore() {
     }
   }, []);
 
-  // Polling for state and events
+  // Live state/events via WebSocket; recipes/scenarios stay on HTTP (low-frequency config)
   useEffect(() => {
-    let mounted = true;
-    
-    // Immediate fetch to avoid flicker
-    const init = async () => {
-      await fetchScenarios();
-      await fetchRecipes();
-      await fetchState();
-      await fetchEvents();
-    };
-    init();
+    let disposed = false;
+    let socket: WebSocket | null = null;
+    let reconnectTimer: number | null = null;
 
-    const interval = setInterval(() => {
-      if (mounted) {
-        fetchState();
-        fetchEvents();
-      }
-    }, 500);
+    const connect = () => {
+      if (disposed) return;
+      const wsUrl = `${API_BASE.replace('http', 'ws')}/ws/state`;
+      socket = new WebSocket(wsUrl);
+
+      socket.onmessage = (msg) => {
+        try {
+          const payload = JSON.parse(msg.data);
+          if (payload.state) setState(payload.state);
+          if (payload.events) setEvents(payload.events);
+          setIsCommsHealthy(true);
+        } catch (err) {
+          console.error('WS message parse error:', err);
+        }
+      };
+
+      socket.onclose = () => {
+        if (disposed) return;
+        setIsCommsHealthy(false);
+        reconnectTimer = window.setTimeout(connect, 1000);
+      };
+
+      socket.onerror = () => {
+        setIsCommsHealthy(false);
+      };
+    };
+
+    connect();
 
     return () => {
-      mounted = false;
-      clearInterval(interval);
+      disposed = true;
+      if (reconnectTimer !== null) clearTimeout(reconnectTimer);
+      if (socket) {
+        socket.onclose = null;
+        socket.close();
+      }
     };
-  }, [fetchState, fetchEvents, fetchScenarios, fetchRecipes]);
+  }, []);
+
+  // Initial config fetch (state arrives via the first WS push)
+  useEffect(() => {
+    fetchScenarios();
+    fetchRecipes();
+  }, [fetchScenarios, fetchRecipes]);
 
   // Auto-tick logic
   useEffect(() => {

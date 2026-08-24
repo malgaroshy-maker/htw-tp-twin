@@ -103,7 +103,7 @@ Open your browser to `http://localhost:5173` to view the HMI.
 As a V1 portfolio project, this platform has a few intentional limitations:
 *   **In-Process State**: Live tags, counters, and the event buffer live in the API process; only events/sessions are persisted to SQLite (`data/events.db`), so restarting resets counters and spawns a new session.
 *   **No Real-Time Physics**: Cycle times and grouping are based on timers and probabilities, not 3D collision or servo kinematics.
-*   **Polling vs. WebSockets**: The dashboard currently polls the API at 2Hz for state updates to keep the architecture simple.
+*   **Live Streaming**: The dashboard receives state and event updates over a WebSocket stream (`/ws/state`, 5Hz push); commands remain HTTP request/response.
 *   **No Physical Hardware**: There is no actual PLC (e.g., Siemens S7) connected yet.
 
 ---

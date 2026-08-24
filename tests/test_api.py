@@ -115,3 +115,14 @@ def test_manual_mode_safety_gate():
     response = client.post("/command", json={"action": "jog_infeed"})
     assert response.status_code == 200
     assert response.json()["accepted"] is False
+
+def test_ws_state_stream():
+    # Connect and receive one pushed snapshot
+    with client.websocket_connect("/ws/state") as ws:
+        payload = ws.receive_json()
+
+    assert payload["type"] == "state"
+    assert "ts" in payload
+    assert "sts" in payload["state"]
+    assert payload["state"]["sts"]["machine_state"] == MachineState.STOPPED.value
+    assert isinstance(payload["events"], list)
