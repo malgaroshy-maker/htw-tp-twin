@@ -41,7 +41,7 @@ export function SimulationView2D({ state }: SimulationView2DProps) {
     if (!state?.evt?.last_event_code) return;
     const evtCode = state.evt.last_event_code;
     const evtTs = state.evt.last_event_ts;
-    if (evtCode === 'PACK_GOOD_DISCHARGED' || evtCode === 'PACK_REJECT_DIVERTED') {
+    if (evtCode === 'PACK_GOOD_DISCHARGED' || evtCode === 'PACK_REJECT_DISCHARGED') {
       const type = evtCode === 'PACK_GOOD_DISCHARGED' ? 'good' : 'reject';
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setTransientPacks(prev => {

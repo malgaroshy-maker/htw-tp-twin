@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import random
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -13,6 +14,8 @@ from app.shared.tag_store import TagStore, TagValidationError
 from app.simulator.config_loader import load_faults, load_recipes
 from app.simulator.scenario_runner import ScenarioRunner
 
+log = logging.getLogger(__name__)
+
 # Configurable cycle phase time splits
 PHASE_SPLITS = {
     "blank_feed": 0.20,
@@ -25,6 +28,22 @@ PHASE_SPLITS = {
 # Blank shortage thresholds
 BLANK_LOW_THRESHOLD = 20       # Warning when blanks drop below this
 BLANK_EMPTY_ESCALATION_CYCLES = 3  # Escalate to fault after N cycles with no blanks
+
+# Fixed sequence timings
+STARTUP_TIME_SEC = 1.0             # STARTING -> RUNNING delay
+CAPTURE_TIME_SEC = 0.3             # CAPTURED phase hold time
+
+# BLANK_FEED sub-sequence timing
+BLANK_MAGAZINE_CHECK_SEC = 0.05    # fixed magazine check duration
+BLANK_SUCTION_SPLIT = 0.40         # suction portion of blank_feed phase time
+BLANK_POSITION_SPLIT = 0.40        # position portion of blank_feed phase time
+BLANK_PROG_OFFSET_SUCTION = 0.05   # progress display offset for suction sub-phase
+BLANK_PROG_OFFSET_POSITION = 0.45  # progress display offset for position sub-phase
+
+# DISCHARGE sub-phase time splits (fractions of discharge phase time)
+DISCHARGE_OUTLET_CHECK_SPLIT = 0.20
+DISCHARGE_QUALITY_SPLIT = 0.30
+DISCHARGE_TRAVEL_SPLIT = 0.50
 
 
 @dataclass
@@ -93,43 +112,43 @@ class SimulatorEngine:
         """Write to status tag with validation."""
         try:
             self.tags.write_sts(key, value)
-        except TagValidationError:
-            pass  # Silently ignore invalid writes during simulation
+        except TagValidationError as exc:
+            log.warning("Rejected sts write %s=%r: %s", key, value, exc)
 
     def _w_out(self, key: str, value: Any) -> None:
         """Write to output/counter tag with validation."""
         try:
             self.tags.write_out(key, value)
-        except TagValidationError:
-            pass
+        except TagValidationError as exc:
+            log.warning("Rejected out write %s=%r: %s", key, value, exc)
 
     def _w_sns(self, key: str, value: Any) -> None:
         """Write to sensor tag with validation."""
         try:
             self.tags.write_sns(key, value)
-        except TagValidationError:
-            pass
+        except TagValidationError as exc:
+            log.warning("Rejected sns write %s=%r: %s", key, value, exc)
 
     def _w_fault(self, key: str, value: Any) -> None:
         """Write to fault tag with validation."""
         try:
             self.tags.write_fault(key, value)
-        except TagValidationError:
-            pass
+        except TagValidationError as exc:
+            log.warning("Rejected fault write %s=%r: %s", key, value, exc)
 
     def _w_warn(self, key: str, value: Any) -> None:
         """Write to warning tag with validation."""
         try:
             self.tags.write_warn(key, value)
-        except TagValidationError:
-            pass
+        except TagValidationError as exc:
+            log.warning("Rejected warn write %s=%r: %s", key, value, exc)
 
     def _w_inputs(self, key: str, value: Any) -> None:
         """Write to input tag with validation."""
         try:
             self.tags.write_inputs(key, value)
-        except TagValidationError:
-            pass
+        except TagValidationError as exc:
+            log.warning("Rejected inputs write %s=%r: %s", key, value, exc)
 
     def update(self, dt: float) -> None:
         """Main simulation update loop."""
@@ -165,7 +184,6 @@ class SimulatorEngine:
         Sensors are derived from simulator internals — they represent what
         physical sensors would read at this moment.
         """
-        sns = self.tags.state.sns
         sts = self.tags.state.sts
         out = self.tags.state.out
         inputs = self.tags.state.inputs
@@ -330,7 +348,6 @@ class SimulatorEngine:
         cmd = self.tags.state.cmd
         sts = self.tags.state.sts
         out = self.tags.state.out
-        inputs = self.tags.state.inputs
         fault_tags = self.tags.state.fault
 
         # Recipe selection
@@ -351,7 +368,7 @@ class SimulatorEngine:
         }:
             if sts["start_permissive_ok"]:
                 self._w_sts("machine_state", MachineState.STARTING.value)
-                self._startup_remaining = 1.0
+                self._startup_remaining = STARTUP_TIME_SEC
                 self._log_event("MACHINE_START_REQUESTED", "STATE", Severity.INFO, "Machine start requested")
 
         # Stop command
@@ -417,12 +434,11 @@ class SimulatorEngine:
         """Process maintenance/setup commands specifically for MANUAL mode."""
         cmd = self.tags.state.cmd
         out = self.tags.state.out
-        sts = self.tags.state.sts
 
         # 1. Jog Infeed: Add one product to the gathering buffer manually.
         if cmd.get("jog_infeed"):
             if out["grouped_count"] < out["target_group_count"]:
-                out["grouped_count"] += 1
+                self._w_out("grouped_count", out["grouped_count"] + 1)
                 self._log_event(
                     "MANUAL_JOG_INFEED",
                     "MANUAL",
@@ -432,8 +448,8 @@ class SimulatorEngine:
 
         # 2. Jog Blank Feed: Force internal state into BLANK_FEED phase.
         if cmd.get("jog_blank_feed"):
-            sts["cycle_phase"] = CyclePhase.BLANK_FEED.value
-            sts["cycle_phase_progress"] = 0.0  # Reset progress to start animation
+            self._w_sts("cycle_phase", CyclePhase.BLANK_FEED.value)
+            self._w_sts("cycle_phase_progress", 0.0)  # Reset progress to start animation
             self._log_event(
                 "MANUAL_JOG_BLANK",
                 "MANUAL",
@@ -443,14 +459,14 @@ class SimulatorEngine:
 
         # 3. Jog Pack Advance: Step to the next phase in the packing cycle.
         if cmd.get("jog_pack_advance"):
-            current_phase = CyclePhase(sts["cycle_phase"])
+            current_phase = CyclePhase(self.tags.state.sts["cycle_phase"])
             phases = list(CyclePhase)
             try:
                 curr_idx = phases.index(current_phase)
                 next_idx = (curr_idx + 1) % len(phases)
                 new_phase = phases[next_idx]
-                sts["cycle_phase"] = new_phase.value
-                sts["cycle_phase_progress"] = 0.0
+                self._w_sts("cycle_phase", new_phase.value)
+                self._w_sts("cycle_phase_progress", 0.0)
                 self._log_event(
                     "MANUAL_JOG_ADVANCE",
                     "MANUAL",
@@ -458,7 +474,7 @@ class SimulatorEngine:
                     f"Manual Cycle Advance: Phase jumped to {new_phase.value}",
                 )
             except (ValueError, IndexError):
-                sts["cycle_phase"] = CyclePhase.IDLE.value
+                self._w_sts("cycle_phase", CyclePhase.IDLE.value)
 
     # ------------------------------------------------------------------ #
     #  State & Cycle Processing                                          #
@@ -553,7 +569,7 @@ class SimulatorEngine:
                 else:
                     self._w_sts("cycle_phase", CyclePhase.CAPTURED.value)
                     self._w_sts("cycle_active", True)
-                    self._capture_timer = 0.3
+                    self._capture_timer = CAPTURE_TIME_SEC
                     self._log_event("FORMATION_CAPTURED", "PRODUCTION", Severity.INFO, "Formation captured by terminal")
             else:
                 self._w_sts("cycle_phase", CyclePhase.GROUPING.value)
@@ -590,12 +606,12 @@ class SimulatorEngine:
                 return
 
             if not sns["transfer_gap_clear"]:
-                self._capture_timer = 0.3
+                self._capture_timer = CAPTURE_TIME_SEC
                 sts["cycle_phase_progress"] = 0.0
                 return
 
             self._capture_timer -= dt
-            total_capture_time = 0.3
+            total_capture_time = CAPTURE_TIME_SEC
             sts["cycle_phase_progress"] = 1.0 - (max(0, self._capture_timer) / total_capture_time)
 
             if self._capture_timer <= 0:
@@ -617,7 +633,7 @@ class SimulatorEngine:
                     self._trigger_fault("BLANK_MISSING")
                     return
                 self._blank_feed_subtimer += dt
-                if self._blank_feed_subtimer >= 0.05:  # Quick check
+                if self._blank_feed_subtimer >= BLANK_MAGAZINE_CHECK_SEC:  # Quick check
                     self._blank_feed_subphase = "suction"
                     self._blank_feed_subtimer = 0.0
 
@@ -628,7 +644,7 @@ class SimulatorEngine:
                     return
                 self._blank_feed_subtimer += dt
                 # Suction takes a portion of the blank_feed time
-                suction_time = recipe.nominal_cycle_time_sec * PHASE_SPLITS["blank_feed"] * 0.4
+                suction_time = recipe.nominal_cycle_time_sec * PHASE_SPLITS["blank_feed"] * BLANK_SUCTION_SPLIT
                 if self._blank_feed_subtimer >= suction_time:
                     self._blank_feed_subphase = "position"
                     self._blank_feed_subtimer = 0.0
@@ -639,7 +655,7 @@ class SimulatorEngine:
                     self._trigger_fault("BLANK_MISSING")
                     return
                 self._blank_feed_subtimer += dt
-                position_time = recipe.nominal_cycle_time_sec * PHASE_SPLITS["blank_feed"] * 0.4
+                position_time = recipe.nominal_cycle_time_sec * PHASE_SPLITS["blank_feed"] * BLANK_POSITION_SPLIT
                 if self._blank_feed_subtimer >= position_time:
                     self._blank_feed_subphase = "ready"
                     self._blank_feed_subtimer = 0.0
@@ -662,9 +678,9 @@ class SimulatorEngine:
             total_phase_time = recipe.nominal_cycle_time_sec * PHASE_SPLITS["blank_feed"]
             elapsed = self._blank_feed_subtimer
             if self._blank_feed_subphase == "suction":
-                elapsed += recipe.nominal_cycle_time_sec * PHASE_SPLITS["blank_feed"] * 0.05
+                elapsed += recipe.nominal_cycle_time_sec * PHASE_SPLITS["blank_feed"] * BLANK_PROG_OFFSET_SUCTION
             elif self._blank_feed_subphase == "position":
-                elapsed += recipe.nominal_cycle_time_sec * PHASE_SPLITS["blank_feed"] * 0.45
+                elapsed += recipe.nominal_cycle_time_sec * PHASE_SPLITS["blank_feed"] * BLANK_PROG_OFFSET_POSITION
             elif self._blank_feed_subphase == "ready":
                 elapsed = total_phase_time
             sts["cycle_phase_progress"] = min(1.0, elapsed / total_phase_time)
@@ -737,7 +753,7 @@ class SimulatorEngine:
                 self._log_event("DISCHARGE_OUTLET_CHECK", "PRODUCTION", Severity.INFO, "Outlet path confirmed clear")
 
                 # Outlet check takes 20% of discharge time
-                if self._discharge_subtimer >= total_phase_time * 0.2:
+                if self._discharge_subtimer >= total_phase_time * DISCHARGE_OUTLET_CHECK_SPLIT:
                     self._discharge_subphase = "quality_decision"
                     self._discharge_subtimer = 0.0
 
@@ -764,7 +780,7 @@ class SimulatorEngine:
                 self._discharge_subtimer += dt
 
                 # Quality decision takes 30% of discharge time
-                if self._discharge_subtimer >= total_phase_time * 0.3:
+                if self._discharge_subtimer >= total_phase_time * DISCHARGE_QUALITY_SPLIT:
                     if self._discharge_is_reject:
                         self._discharge_subphase = "reject_divert"
                     else:
@@ -776,7 +792,7 @@ class SimulatorEngine:
                 self._discharge_subtimer += dt
 
                 # Good travel takes 50% of discharge time (full conveyor travel)
-                if self._discharge_subtimer >= total_phase_time * 0.5:
+                if self._discharge_subtimer >= total_phase_time * DISCHARGE_TRAVEL_SPLIT:
                     self._w_out("cycle_count", out["cycle_count"] + 1)
                     self._w_out("total_product_used", out["total_product_used"] + recipe.products_per_pack)
                     self._w_out("grouped_count", 0)
@@ -803,7 +819,7 @@ class SimulatorEngine:
                 self._discharge_subtimer += dt
 
                 # Reject divert takes 50% of discharge time
-                if self._discharge_subtimer >= total_phase_time * 0.5:
+                if self._discharge_subtimer >= total_phase_time * DISCHARGE_TRAVEL_SPLIT:
                     self._w_out("cycle_count", out["cycle_count"] + 1)
                     self._w_out("total_product_used", out["total_product_used"] + recipe.products_per_pack)
                     self._w_out("grouped_count", 0)
@@ -822,7 +838,7 @@ class SimulatorEngine:
                     out["last_reject_reason"] = self._discharge_reason
                     evt["last_reject_reason"] = self._discharge_reason
 
-                    self._log_event("PACK_REJECT_DIVERTED", "REJECT", Severity.WARNING,
+                    self._log_event("PACK_REJECT_DISCHARGED", "REJECT", Severity.WARNING,
                                    f"Rejected pack diverted at outlet: {self._discharge_reason}",
                                    {"reason": self._discharge_reason})
 
@@ -839,9 +855,9 @@ class SimulatorEngine:
             # Overall phase progress
             elapsed = self._discharge_subtimer
             if self._discharge_subphase == "quality_decision":
-                elapsed += total_phase_time * 0.2
+                elapsed += total_phase_time * DISCHARGE_OUTLET_CHECK_SPLIT
             elif self._discharge_subphase in ("good_travel", "reject_divert"):
-                elapsed += total_phase_time * 0.5
+                elapsed += total_phase_time * DISCHARGE_TRAVEL_SPLIT
             sts["cycle_phase_progress"] = min(1.0, elapsed / total_phase_time)
 
     # ------------------------------------------------------------------ #
@@ -871,7 +887,6 @@ class SimulatorEngine:
 
     def _trigger_fault(self, fault_id: str) -> None:
         fault_def = self.ctx.faults[fault_id]
-        sts = self.tags.state.sts
         fault_tags = self.tags.state.fault
 
         is_stopping = fault_def.severity == Severity.FAULT.value
