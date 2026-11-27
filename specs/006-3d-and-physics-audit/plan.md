@@ -2,6 +2,7 @@
 
 **Date:** 2026-11-27
 **Scope:** `app/simulator/engine.py` (behaviour model) and `app/dashboard/src/features/simulation/**` (3D view + scene model).
+**Implementation status:** see [status.md](status.md) (paused mid-implementation).
 **Method:** Three parallel audits — static review of the 3D code, measured experiments on the simulator
 (fixed-seed runs at several `dt`), and a headless Playwright capture of the live 3D page across one cycle,
 a fault, reset and manual jogs. Key findings were re-checked against the source.
