@@ -23,8 +23,8 @@ IF NOT EXIST "app\dashboard\node_modules" (
 
 REM --- Clean up existing processes ---
 echo Cleaning up previous instances...
-FOR /F "tokens=5" %%p IN ('netstat -aon ^| findstr :8000') DO @taskkill /F /PID %%p >NUL 2>&1
-FOR /F "tokens=5" %%p IN ('netstat -aon ^| findstr :5173') DO @taskkill /F /PID %%p >NUL 2>&1
+FOR /F "tokens=5" %%p IN ('netstat -aon ^| findstr /R /C:":8000 .*LISTENING"') DO @taskkill /F /PID %%p >NUL 2>&1
+FOR /F "tokens=5" %%p IN ('netstat -aon ^| findstr /R /C:":5173 .*LISTENING"') DO @taskkill /F /PID %%p >NUL 2>&1
 
 REM --- Start Backend ---
 ECHO [1/2] Starting Backend API Server in a new window...

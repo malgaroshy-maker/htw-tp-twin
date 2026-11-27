@@ -11,7 +11,7 @@ from app.shared.enums import CyclePhase, MachineMode, MachineState, PackResult, 
 from app.shared.events import EventLogger
 from app.shared.models import FaultDefinition, Recipe
 from app.shared.tag_store import TagStore, TagValidationError
-from app.simulator.config_loader import load_faults, load_recipes
+from app.simulator.config_loader import load_faults, load_recipes, validate_engine_fault_ids
 from app.simulator.scenario_runner import ScenarioRunner
 
 log = logging.getLogger(__name__)
@@ -69,12 +69,14 @@ class SimulatorEngine:
 
         recipes = load_recipes(recipes_path)
         faults = load_faults(faults_path)
+        validate_engine_fault_ids({f.fault_id for f in faults})
 
         self.ctx = SimulatorContext(
             recipes={r.recipe_id: r for r in recipes},
             faults={f.fault_id: f for f in faults},
         )
 
+        self._last_valid_recipe_id = next(iter(self.ctx.recipes))
         self._startup_remaining = 0.0
         self._phase_timer = 0.0
         self._product_timer = 0.0
@@ -330,8 +332,23 @@ class SimulatorEngine:
     # ------------------------------------------------------------------ #
 
     def _apply_recipe(self) -> None:
-        recipe_id = self.tags.state.cfg["active_recipe_id"]
-        recipe = self.ctx.recipes[recipe_id]
+        cfg = self.tags.state.cfg
+        recipe_id = cfg["active_recipe_id"]
+        recipe = self.ctx.recipes.get(recipe_id)
+        if recipe is None:
+            # Unknown ID (e.g. bad scenario/config write): revert to the last valid
+            # recipe, else the first configured one, so update() never crashes.
+            fallback = self._last_valid_recipe_id
+            if fallback not in self.ctx.recipes:
+                fallback = next(iter(self.ctx.recipes))
+            self._log_event(
+                "RECIPE_UNKNOWN", "RECIPE", Severity.WARNING,
+                f"Unknown recipe '{recipe_id}'; reverted to '{fallback}'",
+            )
+            cfg["active_recipe_id"] = fallback
+            recipe_id = fallback
+            recipe = self.ctx.recipes[fallback]
+        self._last_valid_recipe_id = recipe_id
         self.tags.state.cfg["active_recipe_name"] = recipe.recipe_name
         self.tags.state.cfg["target_pack_count"] = recipe.products_per_pack
         self.tags.state.cfg["grid_cols"] = recipe.grid_cols
@@ -359,9 +376,17 @@ class SimulatorEngine:
             else:
                 if self.tags.state.cfg["active_recipe_id"] != cmd["recipe_select"]:
                     self._log_event("RECIPE_CHANGE_DENIED", "RECIPE", Severity.WARNING, "Recipe change denied while running")
+        # recipe_select is a level (not a pulse) tag: once consumed, settle it back
+        # to the active recipe so a denied change is logged once and not applied
+        # later by surprise. It must stay a valid recipe id for the PLC mapping.
+        cmd["recipe_select"] = self.tags.state.cfg["active_recipe_id"]
+
+        # Start/stop/run_empty are only honored in AUTO; in MANUAL the state
+        # machine is frozen, so accepting them would strand the machine.
+        is_auto = sts["machine_mode"] == MachineMode.AUTO.value
 
         # Start command
-        if cmd["start"] and sts["machine_state"] in {
+        if is_auto and cmd["start"] and sts["machine_state"] in {
             MachineState.STOPPED.value,
             MachineState.STARVED.value,
             MachineState.BLOCKED.value,
@@ -372,7 +397,7 @@ class SimulatorEngine:
                 self._log_event("MACHINE_START_REQUESTED", "STATE", Severity.INFO, "Machine start requested")
 
         # Stop command
-        if (cmd["stop"] or cmd["run_empty"]) and sts["machine_state"] in {
+        if is_auto and (cmd["stop"] or cmd["run_empty"]) and sts["machine_state"] in {
             MachineState.RUNNING.value,
             MachineState.STARTING.value,
             MachineState.STARVED.value,
@@ -886,7 +911,10 @@ class SimulatorEngine:
     # ------------------------------------------------------------------ #
 
     def _trigger_fault(self, fault_id: str) -> None:
-        fault_def = self.ctx.faults[fault_id]
+        fault_def = self.ctx.faults.get(fault_id)
+        if fault_def is None:
+            log.warning("Ignoring unknown fault id: %s", fault_id)
+            return
         fault_tags = self.tags.state.fault
 
         is_stopping = fault_def.severity == Severity.FAULT.value
@@ -937,7 +965,13 @@ class SimulatorEngine:
     # ------------------------------------------------------------------ #
 
     def inject_fault(self, code: str, text: str) -> None:
-        """Manual fault injection for testing/demo."""
+        """Manual fault injection for testing/demo.
+
+        Raises:
+            ValueError: if ``code`` is not a configured fault ID.
+        """
+        if code not in self.ctx.faults:
+            raise ValueError(f"Unknown fault code: {code}")
         self._trigger_fault(code)
         if text:
             self.tags.state.fault["active_text"] = text

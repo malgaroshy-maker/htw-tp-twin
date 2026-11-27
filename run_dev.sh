@@ -19,7 +19,7 @@ if [ ! -d "app/dashboard/node_modules" ]; then
     kill $BACKEND_PID
     exit 1
 fi
-(cd app/dashboard && npm run dev > ../../frontend.log 2>&1 &)
+npm --prefix app/dashboard run dev > frontend.log 2>&1 &
 FRONTEND_PID=$!
 echo "Frontend server started in background (PID: $FRONTEND_PID). Log: frontend.log"
 

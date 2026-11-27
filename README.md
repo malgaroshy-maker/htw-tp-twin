@@ -96,7 +96,19 @@ npm run dev
 ```
 Open your browser to `http://localhost:5173` to view the HMI.
 
+### 5. Run the OPC UA Bridge (Optional)
+With the API running, start the OPC UA bridge in another terminal to expose the machine to PLC/SCADA-style clients:
+```bash
+python -m app.integration.opcua_server
+```
+This serves the address space at `opc.tcp://localhost:4840/traypacker/` (folders: `TrayPacker/Commands`, `/Inputs`, `/Status`, `/Outputs`, `/Faults`, `/Warnings`, `/Sensors`, `/Diagnostics`). Write `True` to a command node (e.g., `Commands/Start`) to fire it on the next scan. Configure via environment variables: `TRAYPACKER_API_URL`, `OPCUA_ENDPOINT`, `OPCUA_SCAN_INTERVAL_SEC`.
+
 ---
+
+### API Environment Variables
+
+- `TRAYPACKER_CORS_ORIGINS`: comma-separated browser origins allowed by CORS (default: Vite dev/preview origins on `localhost`/`127.0.0.1`, ports 5173 and 4173).
+- `TRAYPACKER_DISABLE_DEV_ROUTES=1`: makes all `/dev/*` routes return 403 (enabled by default for the Diagnostics page).
 
 ## ⚠️ Current Limitations
 

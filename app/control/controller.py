@@ -3,6 +3,7 @@ from __future__ import annotations
 import time
 
 from app.shared.enums import MachineMode, MachineState
+from app.shared.models import TagValidationError
 from app.shared.tag_store import TagStore
 from app.shared.plc_mapping import tag_store_to_plc_snapshot
 
@@ -24,9 +25,12 @@ class PLCStyleController:
         This is the primary entry point for a future Siemens PLC controller.
         It performs a deterministic scan cycle:
         1. Accept commands/inputs from PLC
-        2. Evaluate permissives and update HMI flags
-        3. Increment scan counter and heartbeat
+        2. Evaluate permissives and update HMI flags, then apply commands once
+        3. Update mode handshake, scan counter and heartbeat
         4. Return deterministic snapshot
+
+        Command pulses are left set for the simulator, which clears them after
+        consuming them in ``SimulatorEngine.update()``.
 
         Args:
             commands_in: Optional dict with command fields to apply before scan.
@@ -42,24 +46,16 @@ class PLCStyleController:
         # Reset command acknowledgement at start of each scan
         plc["command_ack_code"] = 0
 
-        # Apply incoming commands if provided
+        # Evaluate permissives first so command validation sees fresh HMI flags
+        self._evaluate_permissives()
+        self._update_hmi_flags()
+
+        # Apply incoming commands exactly once. Pulses are NOT cleared here:
+        # the simulator engine consumes and clears them in SimulatorEngine.update().
         if commands_in:
             self._apply_plc_commands(commands_in)
 
-        # Execute scan
-        self._evaluate_permissives()
-        self._update_hmi_flags()
         self._update_mode_handshake()
-
-        # Re-apply commands after HMI flags are updated (for command validation)
-        if commands_in:
-            # Reset ack and re-evaluate
-            plc["command_ack_code"] = 0
-            cmd_code = commands_in.get("command_code", 0)
-            if cmd_code:
-                plc["last_command_code"] = cmd_code
-                accepted = self._execute_command_code(cmd_code, commands_in)
-                plc["command_ack_code"] = 1 if accepted else 2
 
         # Increment scan counter and heartbeat
         plc["scan_counter"] += 1
@@ -68,9 +64,6 @@ class PLCStyleController:
 
         scan_end = time.monotonic()
         plc["scan_duration_ms"] = (scan_end - scan_start) * 1000
-
-        # Clear pulse commands after scan
-        self.tags.pulse_clear()
 
         # Return deterministic PLC-facing snapshot
         return tag_store_to_plc_snapshot(self.tags)
@@ -112,10 +105,6 @@ class PLCStyleController:
         7=ACK_ALARM, 8=CLEAR_COUNTS, 9=REFILL_BLANKS, 10=CLEAR_REJECTS
         """
         plc = self.tags.state.plc
-        cmd = self.tags.state.cmd
-
-        # Reset acknowledgement from previous cycle
-        plc["command_ack_code"] = 0
 
         # Process command code if provided
         cmd_code = commands.get("command_code", 0)
@@ -124,18 +113,24 @@ class PLCStyleController:
             accepted = self._execute_command_code(cmd_code, commands)
             plc["command_ack_code"] = 1 if accepted else 2
 
-        # Process mode request if provided
-        if "requested_mode" in commands:
-            requested = commands["requested_mode"]
-            if requested in (0, 1):  # 0=AUTO, 1=MANUAL
-                self.tags.write_plc("requested_mode", requested)
+        # Process mode request if provided (None means "not provided")
+        requested = commands.get("requested_mode")
+        if requested is not None and requested in (0, 1):  # 0=AUTO, 1=MANUAL
+            self.tags.write_plc("requested_mode", requested)
 
-        # Process recipe selection if provided
-        if "recipe_select" in commands:
-            recipe_id = commands["recipe_select"]
+        # Process recipe selection if provided (None/empty means "not provided")
+        recipe_id = commands.get("recipe_select")
+        if recipe_id:
+            accepted = False
             if self.tags.state.hmi["recipe_change_enabled"]:
-                self.tags.write_cmd("recipe_select", recipe_id)
-                plc["command_ack_code"] = 1
+                try:
+                    self.tags.write_cmd("recipe_select", recipe_id)
+                    accepted = True
+                except TagValidationError:
+                    accepted = False
+            # Only set the ack if no command code already claimed it
+            if not cmd_code:
+                plc["command_ack_code"] = 1 if accepted else 2
 
     def _execute_command_code(self, code: int, params: dict) -> bool:
         """Execute a command by integer code. Returns True if accepted."""
@@ -158,6 +153,10 @@ class PLCStyleController:
             return False
 
         key, enabled = command_map[code]
+        if code == 5:
+            return self.request_mode_auto()
+        if code == 6:
+            return self.request_mode_manual()
         if enabled:
             self.tags.write_cmd(key, True)
             return True
@@ -332,11 +331,10 @@ class PLCStyleController:
         )
 
         # Mode Switching: Only if not actively running/starting
+        # (PLC_Control_Spec 11.4: require STOPPED, or FAULTED, before a mode change.)
         can_switch_mode = state in {
             MachineState.STOPPED.value,
             MachineState.FAULTED.value,
-            MachineState.STARVED.value,
-            MachineState.BLOCKED.value,
         }
         hmi["auto_mode_enabled"] = can_switch_mode and mode != MachineMode.AUTO.value
         hmi["manual_mode_enabled"] = can_switch_mode and mode != MachineMode.MANUAL.value

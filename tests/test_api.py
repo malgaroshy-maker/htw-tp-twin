@@ -35,10 +35,8 @@ def test_command_start():
 
 def test_command_invalid():
     response = client.post("/command", json={"action": "invalid_action"})
-    assert response.status_code == 200
-    data = response.json()
-    assert data["accepted"] is False
-    assert data["error"] == "unsupported action"
+    assert response.status_code == 400
+    assert "unsupported action" in response.json()["detail"]
 
 def test_command_run_empty():
     # First start it

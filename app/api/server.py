@@ -1,15 +1,23 @@
 import asyncio
+import dataclasses
+import json
+import os
+import tempfile
 import uuid
+from dataclasses import asdict
 from datetime import datetime, timezone
-from typing import Any, Optional
+from pathlib import Path
+from typing import Annotated, Any, Optional
 
-from fastapi import FastAPI, Query, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import Depends, FastAPI, Query, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.shared.tag_store import TagStore
 from app.shared.enums import Severity
 from app.shared.persistence import EventStore
+from app.shared.plc_mapping import tag_store_to_plc_snapshot
+from app.simulator.config_loader import validate_recipe
 from app.simulator.engine import SimulatorEngine
 from app.control.controller import PLCStyleController
 from app.ai.assistant import AIAssistant
@@ -18,14 +26,37 @@ from app.reports import generator
 
 app = FastAPI(title="Tray Packer Digital Twin API")
 
-# Add CORS middleware
+# Vite dev server (5173) and preview server (4173) origins.
+DEFAULT_CORS_ORIGINS = (
+    "http://localhost:5173,http://127.0.0.1:5173,"
+    "http://localhost:4173,http://127.0.0.1:4173"
+)
+RECIPES_PATH = Path(__file__).resolve().parents[2] / "configs" / "recipes.json"
+
+
+def _cors_origins() -> list[str]:
+    """Allowed browser origins from TRAYPACKER_CORS_ORIGINS (comma-separated)."""
+    raw = os.environ.get("TRAYPACKER_CORS_ORIGINS", DEFAULT_CORS_ORIGINS)
+    return [o.strip() for o in raw.split(",") if o.strip()]
+
+
+# The dashboard does not use cookies, so credentials stay disabled.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=_cors_origins(),
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+def require_dev_routes() -> None:
+    """Reject /dev/* routes with 403 when TRAYPACKER_DISABLE_DEV_ROUTES=1 (read per request)."""
+    if os.environ.get("TRAYPACKER_DISABLE_DEV_ROUTES") == "1":
+        raise HTTPException(status_code=403, detail="Dev routes are disabled")
+
+
+DevOnly = Annotated[None, Depends(require_dev_routes)]
 
 TAGS = TagStore()
 # Initialize session ID
@@ -72,19 +103,19 @@ class TickRequest(BaseModel):
 
 class SetInputRequest(BaseModel):
     name: str
-    value: Any
+    value: bool
 
 
 class UpdateRecipeRequest(BaseModel):
     recipe_id: str
     recipe_name: Optional[str] = None
-    products_per_pack: Optional[int] = None
-    grid_cols: Optional[int] = None
-    grid_rows: Optional[int] = None
-    nominal_cycle_time_sec: Optional[float] = None
-    product_spawn_interval_sec: Optional[float] = None
-    reject_probability: Optional[float] = None
-    jam_probability: Optional[float] = None
+    products_per_pack: Optional[int] = Field(None, gt=0)
+    grid_cols: Optional[int] = Field(None, gt=0)
+    grid_rows: Optional[int] = Field(None, gt=0)
+    nominal_cycle_time_sec: Optional[float] = Field(None, gt=0)
+    product_spawn_interval_sec: Optional[float] = Field(None, gt=0)
+    reject_probability: Optional[float] = Field(None, ge=0, le=1)
+    jam_probability: Optional[float] = Field(None, ge=0, le=1)
     display_color: Optional[str] = None
     notes: Optional[str] = None
 
@@ -160,7 +191,6 @@ def tick(req: Optional[TickRequest] = None) -> dict:
 def command(req: CommandRequest) -> dict:
     action = req.action.lower()
     result = False
-    error = None
 
     if action == "start":
         result = CTRL.request_start()
@@ -185,18 +215,14 @@ def command(req: CommandRequest) -> dict:
     elif action == "jog_pack_advance":
         result = CTRL.jog_pack_advance()
     else:
-        error = "unsupported action"
+        raise HTTPException(status_code=400, detail=f"unsupported action: {req.action}")
 
     # Run a 0-dt update to let the engine process the command pulse immediately
     SIM.update(0.0)
     CTRL.update()
     _flush_events_to_db()
 
-    response: dict[str, Any] = {"accepted": result, "state": TAGS.snapshot()}
-    if error:
-        response["error"] = error
-    
-    return response
+    return {"accepted": result, "state": TAGS.snapshot()}
 
 
 @app.post("/recipe")
@@ -207,47 +233,55 @@ def recipe(req: RecipeRequest) -> dict:
     return {"accepted": accepted, "state": TAGS.snapshot()}
 
 
+def _persist_recipe(recipe_id: str, changes: dict[str, Any]) -> None:
+    """Write recipe changes to recipes.json atomically (temp file + os.replace)."""
+    with open(RECIPES_PATH, "r", encoding="utf-8") as f:
+        raw_recipes = json.load(f)
+    for r_dict in raw_recipes:
+        if r_dict["recipe_id"] == recipe_id:
+            r_dict.update(changes)
+            break
+    fd, tmp_name = tempfile.mkstemp(dir=RECIPES_PATH.parent, prefix=".recipes-", suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump(raw_recipes, f, indent=2)
+        os.replace(tmp_name, RECIPES_PATH)
+    except BaseException:
+        if os.path.exists(tmp_name):
+            os.unlink(tmp_name)
+        raise
+
+
 @app.post("/recipe/update")
 def update_recipe(req: UpdateRecipeRequest) -> dict:
-    import json
-    
-    # Check if recipe exists
+    """Validate, persist, then commit a recipe edit so memory never diverges from disk."""
     if req.recipe_id not in SIM.ctx.recipes:
         raise HTTPException(status_code=404, detail="Recipe not found")
-        
-    recipe = SIM.ctx.recipes[req.recipe_id]
-    
-    # Update fields that are provided
-    update_data = req.dict(exclude_unset=True)
-    for key, value in update_data.items():
-        if hasattr(recipe, key) and key != "recipe_id":
-            setattr(recipe, key, value)
-            
-    # Load raw JSON directly and update it
-    recipes_path = "configs/recipes.json"
+
+    current = SIM.ctx.recipes[req.recipe_id]
+    changes = {
+        k: v
+        for k, v in req.model_dump(exclude_unset=True).items()
+        if k != "recipe_id" and v is not None
+    }
+    candidate = dataclasses.replace(current, **changes)
     try:
-        with open(recipes_path, 'r', encoding='utf-8') as f:
-            raw_recipes = json.load(f)
-            
-        for r_dict in raw_recipes:
-            if r_dict["recipe_id"] == req.recipe_id:
-                for key, value in update_data.items():
-                    if key != "recipe_id":
-                        r_dict[key] = value
-                break
-                
-        # Save back
-        with open(recipes_path, 'w', encoding='utf-8') as f:
-            json.dump(raw_recipes, f, indent=2)
-            
+        validate_recipe(candidate)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+
+    try:
+        _persist_recipe(req.recipe_id, changes)
     except Exception as e:
-        print(f"Failed to update recipes.json: {e}")
-        
-    # Re-evaluate logic based on new settings (re-select active recipe if it's the one modified to trigger resets if necessary)
+        raise HTTPException(status_code=500, detail=f"Failed to update recipes.json: {e}")
+
+    SIM.ctx.recipes[req.recipe_id] = candidate
+
+    # Re-evaluate logic if the active recipe was modified
     if TAGS.state.cfg["active_recipe_id"] == req.recipe_id:
         CTRL.update()
-        
-    return {"status": "ok", "recipe": _to_dict(recipe), "state": TAGS.snapshot()}
+
+    return {"status": "ok", "recipe": _to_dict(candidate), "state": TAGS.snapshot()}
 
 
 @app.post("/session/reset")
@@ -290,7 +324,6 @@ def stop_scenario() -> dict:
 
 def _to_dict(obj: Any) -> Any:
     """Recursively convert dataclasses and other structures to JSON-serializable dicts."""
-    import dataclasses
     if dataclasses.is_dataclass(obj):
         result = {}
         for field in dataclasses.fields(obj):
@@ -355,20 +388,23 @@ def get_session_report(format: str = "json") -> Any:
 
 
 @app.post("/dev/set-input")
-def set_input(req: SetInputRequest) -> dict:
+def set_input(req: SetInputRequest, _dev: DevOnly) -> dict:
     """Force a machine input value (Dev only)."""
-    if req.name in TAGS.state.inputs:
-        TAGS.state.inputs[req.name] = req.value
-        SIM.update(0.0)
-        CTRL.update()
-        return {"status": "ok", "state": TAGS.snapshot()}
-    raise HTTPException(status_code=400, detail=f"Input {req.name} not found")
+    if req.name not in TAGS.state.inputs:
+        raise HTTPException(status_code=400, detail=f"Input {req.name} not found")
+    TAGS.write_inputs(req.name, req.value)
+    SIM.update(0.0)
+    CTRL.update()
+    return {"status": "ok", "state": TAGS.snapshot()}
 
 
 @app.post("/dev/inject-fault")
-def inject_fault(req: InjectFaultRequest) -> dict:
+def inject_fault(req: InjectFaultRequest, _dev: DevOnly) -> dict:
     """Manually inject a fault (Dev only)."""
-    SIM.inject_fault(req.code, req.text or f"Manual injection: {req.code}")
+    try:
+        SIM.inject_fault(req.code, req.text or f"Manual injection: {req.code}")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     CTRL.update()
     return {"status": "ok", "state": TAGS.snapshot()}
 
@@ -405,37 +441,33 @@ def plc_scan(req: PlcScanRequest) -> dict:
     """Transactional cyclic exchange for PLC integration.
 
     This endpoint implements a deterministic scan cycle:
-    1. Accept commands/inputs from PLC
-    2. Execute simulator update
-    3. Execute controller scan cycle
-    4. Check comms health
-    5. Return deterministic PLC-facing snapshot (all integer/boolean fields)
+    1. Apply incoming inputs (known input names only, else 400)
+    2. Run the controller scan cycle, which applies commands once
+    3. Run the simulator update, which consumes the command pulses
+    4. Re-evaluate permissives and check comms health
+    5. Return the PLC-facing snapshot (all integer/boolean fields)
 
     This is the primary interface for a future Siemens PLC controller.
     """
-    # Apply incoming inputs if provided
     if req.inputs:
+        unknown = sorted(k for k in req.inputs if k not in TAGS.state.inputs)
+        if unknown:
+            raise HTTPException(status_code=400, detail=f"Unknown input names: {unknown}")
         for key, value in req.inputs.items():
-            if key in TAGS.state.inputs:
-                TAGS.state.inputs[key] = value
+            TAGS.write_inputs(key, value)
 
-    # Execute simulator update
+    commands_in: dict[str, Any] = {"command_code": req.command_code}
+    if req.requested_mode is not None:
+        commands_in["requested_mode"] = req.requested_mode
+    if req.recipe_select is not None:
+        commands_in["recipe_select"] = req.recipe_select
+
+    CTRL.scan_cycle(commands_in)
     SIM.update(0.1)
-
-    # Execute controller scan cycle with commands
-    commands_in = {
-        "command_code": req.command_code,
-        "requested_mode": req.requested_mode,
-        "recipe_select": req.recipe_select,
-    }
-    scan_result = CTRL.scan_cycle(commands_in)
-
-    # Check comms health
+    CTRL.update()
     CTRL.check_comms_health()
 
-    # Return PLC-facing snapshot as dict
-    from dataclasses import asdict
-    return asdict(scan_result)
+    return asdict(tag_store_to_plc_snapshot(TAGS))
 
 
 @app.get("/plc/status")
@@ -444,9 +476,7 @@ def plc_status() -> dict:
 
     Returns PLC-facing integer/boolean fields only.
     """
-    from app.shared.plc_mapping import tag_store_to_plc_snapshot
     snapshot = tag_store_to_plc_snapshot(TAGS)
-    from dataclasses import asdict
     return {
         "version": snapshot.version,
         "plc": asdict(snapshot.plc),

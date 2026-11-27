@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import time
 from typing import Any, TYPE_CHECKING
 
@@ -8,6 +9,8 @@ from app.shared.models import Scenario, ScenarioCondition, ScenarioAction, Scena
 
 if TYPE_CHECKING:
     from app.simulator.engine import SimulatorEngine
+
+log = logging.getLogger(__name__)
 
 
 class ScenarioRunner:
@@ -44,7 +47,9 @@ class ScenarioRunner:
         self.stable_cycles = 0
         
         # Set initial recipe if specified
-        if scenario.initial_recipe:
+        if scenario.initial_recipe and scenario.initial_recipe not in self.engine.ctx.recipes:
+            self._warn(f"Scenario '{scenario.scenario_id}' initial_recipe '{scenario.initial_recipe}' is unknown; ignored")
+        elif scenario.initial_recipe:
             self._apply_action(ScenarioAction(type="SET_CFG", name="active_recipe_id", value=scenario.initial_recipe))
             
         self.engine.tags.state.cfg["active_scenario_id"] = scenario.scenario_id
@@ -164,17 +169,27 @@ class ScenarioRunner:
                 self._capture_original("inputs", action.name, state.inputs[action.name])
                 state.inputs[action.name] = action.value
             else:
-                print(f"DEBUG: {action.name} not in inputs")
+                self._warn(f"Scenario SET_INPUT skipped: unknown input '{action.name}'")
         
         elif action.type == "SET_CFG":
-            if action.name in state.cfg:
+            if action.name == "active_recipe_id" and action.value not in self.engine.ctx.recipes:
+                self._warn(f"Scenario SET_CFG skipped: unknown recipe '{action.value}'")
+            elif action.name in state.cfg:
                 self._capture_original("cfg", action.name, state.cfg[action.name])
                 state.cfg[action.name] = action.value
             else:
-                print(f"DEBUG: {action.name} not in cfg")
+                self._warn(f"Scenario SET_CFG skipped: unknown cfg '{action.name}'")
 
         elif action.type == "INJECT_FAULT":
-            self.engine.inject_fault(action.name, f"Scenario: {action.name}")
+            if action.name not in self.engine.ctx.faults:
+                self._warn(f"Scenario INJECT_FAULT skipped: unknown fault '{action.name}'")
+            else:
+                self.engine.inject_fault(action.name, f"Scenario: {action.name}")
+
+    def _warn(self, message: str) -> None:
+        """Log a skipped scenario action to the logger and the event log."""
+        log.warning(message)
+        self.engine._log_event("SCENARIO_ACTION_SKIPPED", "SCENARIO", Severity.WARNING, message)
 
     def _capture_original(self, tag_type: str, name: str, current_value: Any) -> None:
         """Save the original value of a tag before it's modified by a scenario."""
